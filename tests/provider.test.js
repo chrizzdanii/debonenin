@@ -25,7 +25,7 @@ test.before(async () => {
   fake = http.createServer((req, res) => { let b = ''; req.on('data', d => b += d); req.on('end', () => { const j = JSON.parse(b || '{}'); res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify(REPLY[j.nin] || { status: 'error' })); }); }).listen(FAKE);
   proc = spawn(process.execPath, ['server.js'], { cwd: path.join(__dirname, '..'), env: { ...process.env, PORT, DATABASE_URL: db.url, VP_BASE: 'http://127.0.0.1:' + FAKE + '/', PAYSTACK_SECRET: '', ADMIN_EMAIL: 'boss@test.com', BASE_URL: URL } });
   for (let i = 0; i < 30; i++) { try { if ((await fetch(URL + '/health')).ok) break; } catch {} await new Promise(r => setTimeout(r, 200)); }
-  await call('register', { email: 'c@test.com', pass: 'secret123', agree: true });
+  await call('register', { email: 'c@test.com', pass: 'secret123', agree: true, phone: H.phone() });
   await db.x('UPDATE users SET bal=2000');
 });
 test.after(async () => { proc.kill(); fake.close(); await db.drop(); });
@@ -52,7 +52,7 @@ test('slip under an unexpected field name is still found, charged and saved for 
 });
 test('saved results are admin-only and the slip can be downloaded from them', async () => {
   assert.equal((await call('admin/results')).ok, false);
-  cookie = ''; await call('register', { email: 'boss@test.com', pass: 'secret123', agree: true });
+  cookie = ''; await call('register', { email: 'boss@test.com', pass: 'secret123', agree: true, phone: H.phone() });
   const l = await call('admin/results'); assert.equal(l.ok, true); assert.ok(l.rows.length >= 3);
   const row = l.rows.find(x => x.has_pdf); const d = await call('admin/result', { id: row.id });
   assert.ok(d.ok && d.pdf.startsWith('JVBER')); assert.ok(!d.raw.includes('api_key'));

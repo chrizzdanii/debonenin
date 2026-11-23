@@ -24,8 +24,8 @@ const nowStep = () => Math.floor(Date.now() / 30000);
 
 test.before(async () => {
   db = await H.newDb(); await boot(PORT); await boot(PORT + 1);
-  await call('admin', 'register', { email: 'boss@test.com', pass: 'secret123', agree: true });
-  await call('ann', 'register', { email: 'ann@test.com', pass: 'secret123', agree: true });
+  await call('admin', 'register', { email: 'boss@test.com', pass: 'secret123', agree: true, phone: H.phone() });
+  await call('ann', 'register', { email: 'ann@test.com', pass: 'secret123', agree: true, phone: H.phone() });
 });
 test.after(async () => { procs.forEach(p => p.kill()); await db.x('DROP OWNED BY dv_probe').catch(() => {}); await db.x('DROP ROLE IF EXISTS dv_probe').catch(() => {}); await db.drop(); });
 

@@ -92,9 +92,16 @@ const PASS_FEE = E.PASS_PAYSTACK_FEE !== '0';
 const paystackLive = c => !!E.PAYSTACK_SECRET && (c.paystack_on != null ? c.paystack_on === '1' : E.PAYSTACK_ENABLED === '1'); // off unless you switch it on in Admin
 const grossFor = a => { if (!PASS_FEE) return a; let g = Math.ceil(a / 0.985); if (g >= 2500) g = Math.ceil((a + 100) / 0.985); if (g - a > 2000) g = a + 2000; return g; };
 const COST = {nin_premium: 100, nin_standard: 100, nin_regular: 100, nin_vnin: 100, nin_basic: 100, phone_premium: 100, phone_standard: 100, phone_regular: 100, nin_demo: 120, bvn_premium: 80, bvn_standard: 80, ipe: 500, validation: 500, personalization: 140, tin: 270, tin_by_nin: 270, tin_by_phone: 270, tin_by_cac: 270, tcc: 270, business_tax: 270, cac_basic: 230, cac_advance: 360, cac_premium: 1350, scuml: 180, voters_card: 720, drivers_license: 230, passport: 270, plate_number: 180, plate_advance: 230, vin_chassis: 230, bank_account: 90, bank_account_match: 140, bvn_bank_verify: 90, meter_address: 360};  // provider (API) prices in naira
-const px = k => q('SELECT price,cost,active FROM prices WHERE k=?', k);
-/* Customers pay the selling price. The admin pays the provider (API) price with no markup. */
-const priceFor = async (k, admin) => { const p = await px(k); return admin && p.cost > 0 ? p.cost : Math.max(p.price, p.cost); }; // customers never pay below the provider price
+const normPhone = p => { p = String(p || '').replace(/[\s\-()]/g, ''); if (/^\+234\d{10}$/.test(p)) p = '0' + p.slice(4); else if (/^234\d{10}$/.test(p)) p = '0' + p.slice(3); return /^0[789]\d{9}$/.test(p) ? p : null; };
+const px = k => q('SELECT price,price_ind,cost,active,agent_only FROM prices WHERE k=?', k);
+/* TWO PRICE LEVELS. "price" = the verified-agent price. "price_ind" = what an unverified individual pays.
+   price_ind = 0 means "work it out automatically": agent price + 50%, rounded up to the next N50, and at least N100 more. */
+const indAuto = a => Math.max(Math.ceil(a * 1.5 / 50) * 50, a + 100);
+const indOf = p => Math.max(p.price_ind > 0 ? p.price_ind : indAuto(p.price), p.price, p.cost); // never below the agent price or the provider price
+const agentOf = p => Math.max(p.price, p.cost);
+const priceView = (p, u) => u.admin && p.cost > 0 ? p.cost : u.agent ? agentOf(p) : indOf(p);
+/* Verified agents pay the agent price, unverified individuals pay the higher individual price. The admin pays the provider (API) price with no markup. */
+const priceFor = async (k, u) => priceView(await px(k), u); // nobody pays below the provider price
 const bal = async id => (await q('SELECT bal FROM users WHERE id=?', id)).bal;
 const charge = async (id, n) => (await run('UPDATE users SET bal=bal-? WHERE id=? AND bal>=?', n, id, n)).changes === 1;
 const refund = (id, n, X = D) => X.run('UPDATE users SET bal=bal+? WHERE id=?', n, id);
@@ -123,6 +130,10 @@ async function init() {
   await pool.query(`INSERT INTO prices(k,price,cost) VALUES ${rows.map((x, i) => `($${i * 3 + 1},$${i * 3 + 2},$${i * 3 + 3})`).join(',')} ON CONFLICT (k) DO NOTHING`, rows.flatMap(x => [x.key, x.price, COST[x.key] || 0]));
   if ((await getSet('prices_v2')) == null) { for (const x of rows) await run('UPDATE prices SET price=?,cost=? WHERE k=?', x.price, COST[x.key] || 0, x.key); await setSet('prices_v2', '1'); } // one-time load of the provider price list
   if ((await getSet('ledger_base')) == null) await setSet('ledger_base', String((await q('SELECT COALESCE(SUM(bal),0) n FROM users')).n - (await q('SELECT COALESCE(SUM(amt),0) n FROM tx')).n)); // lets old data start balanced
+  try { await q('SELECT agent_status, phone FROM users LIMIT 1'); await q('SELECT agent_only, price_ind FROM prices LIMIT 1'); await q('SELECT 1 x FROM agent_apps LIMIT 1'); await q('SELECT 1 x FROM invites LIMIT 1'); }
+  catch (e) { throw new Error('The database is missing the newest tables. In Supabase run supabase/1-schema.sql and then supabase/2-app-user.sql again. (' + e.message + ')'); }
+  if ((await getSet('ind_price_v1')) == null) { await run('UPDATE prices SET price_ind = CASE WHEN price_ind = 0 THEN GREATEST(CEIL(price * 1.5 / 50.0)::int * 50, price + 100) ELSE price_ind END'); await setSet('ind_price_v1', '1'); } // one-time: give every service a visible individual price (you can change each one in Admin -> Set Prices)
+  if ((await getSet('open_to_all_v1')) == null) { await run('UPDATE prices SET agent_only=0'); await setSet('open_to_all_v1', '1'); await setSet('agent_lock_v1', '1'); } // one-time: every service is open to everyone; unverified people simply pay the individual price
   try { const c = JSON.parse((await getSet('provider_list')) || '{}'); if (c.lists) LISTS = c.lists; listAt = c.at || 0; } catch { listAt = 0; }
 }
 /* Bank lists: the provider publishes the exact bank codes it accepts. We keep a copy and refresh it once a day (one request). */
@@ -270,27 +281,45 @@ app.use('/api', (req, res, next) => { // blocks requests that come from other we
 });
 app.use('/api', (req, res, next) => (req.method === 'POST' && !req.is('application/json')) ? res.status(415).json({ ok: false, msg: 'Unsupported request.' }) : next()); // JSON only (also stops cross-site form posts)
 const smallJson = express.json({ limit: '50kb', verify: (req, res, buf) => { req.raw = buf; } });
-app.use((req, res, next) => req.path === '/api/transfer/proof' ? next() : smallJson(req, res, next)); // receipt photos are parsed later, only for logged-in users
+app.use((req, res, next) => ['/api/transfer/proof', '/api/agent/apply'].includes(req.path) ? next() : smallJson(req, res, next)); // receipt photos are parsed later, only for logged-in users
 let sessionMw;
 app.use('/api', (req, res, next) => { sessionMw = sessionMw || session({ store: new Store(), secret: SECRET, resave: false, saveUninitialized: false, name: 'dv.sid',
   cookie: { httpOnly: true, sameSite: 'lax', secure: 'auto', maxAge: 30 * 864e5 } }); sessionMw(req, res, next); }); // 'auto': secure cookie on https, normal cookie on http://localhost
 const auth = wrap(async (req, res, next) => {
-  const u = req.session.uid && await q('SELECT id,name,email,bal,active,totp_on FROM users WHERE id=?', req.session.uid);
+  const u = req.session.uid && await q('SELECT id,name,email,bal,active,totp_on,agent_status,phone FROM users WHERE id=?', req.session.uid);
   if (!u || !u.active) { if (u) req.session.destroy(() => {}); return res.status(401).json({ ok: false, auth: false }); }
-  req.user = { ...u, admin: isAdmin(u.email) }; next();
+  req.user = { ...u, admin: isAdmin(u.email), agent: isAdmin(u.email) || u.agent_status === 'approved' }; next();
 });
 const adminOnly = (req, res, next) => req.user.admin ? next() : res.status(403).json({ ok: false, msg: 'Admins only.' });
 
 /* ---------- accounts ---------- */
 app.post('/api/register', limit('reg', 10, 15 * 60e3), wrap(async (req, res) => {
-  const email = String(req.body.email || '').trim().toLowerCase(), pass = String(req.body.pass || '');
+  if (req.body.website) return res.json({ ok: false, msg: 'Could not create the account.' }); // hidden trap field: only bots fill it in
+  const c = await cfgAll(), mode = c.reg_mode || 'open';
+  const email = String(req.body.email || '').trim().toLowerCase(), pass = String(req.body.pass || ''), phone = normPhone(req.body.phone);
+  const invite = String(req.body.invite || '').trim().toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 20), bypass = isAdmin(email); // the admin address can always register
+  if (!bypass && mode === 'closed') return res.json({ ok: false, msg: 'New registrations are closed right now. Please contact support.' });
   if (!/^\S+@\S+\.\S+$/.test(email) || email.length > 120) return res.json({ ok: false, msg: 'Enter a valid email address.' });
   if (pass.length < 8 || pass.length > 100) return res.json({ ok: false, msg: 'Password must be 8 to 100 characters.' });
+  if (!phone) return res.json({ ok: false, msg: 'Enter a valid Nigerian mobile number, for example 08012345678.' });
   if (!req.body.agree) return res.json({ ok: false, msg: 'Please accept the Terms & Privacy to continue.' });
+  const needInvite = !bypass && mode === 'invite';
+  if (needInvite && !invite) return res.json({ ok: false, msg: 'You need an invite code from us to register. Please contact support to get one.' });
   if (await q('SELECT 1 x FROM users WHERE email=?', email)) return res.json({ ok: false, msg: 'That email already has an account.' });
-  let r; try { r = await run('INSERT INTO users(name,email,pass,agreed_at,created) VALUES(?,?,?,now(),now()) RETURNING id', String(req.body.name || '').trim().slice(0, 80), email, await bcrypt.hash(pass, 10)); }
-  catch (e) { if (e.code === '23505') return res.json({ ok: false, msg: 'That email already has an account.' }); throw e; }
-  await regen(req); req.session.uid = r.rows[0].id; res.json({ ok: true });
+  if (await q('SELECT 1 x FROM users WHERE phone=?', phone)) return res.json({ ok: false, msg: 'That phone number is already registered.' });
+  const hash = await bcrypt.hash(pass, 10); let id;
+  try {
+    id = await tx(async X => {
+      const r = await X.run('INSERT INTO users(name,email,pass,phone,agreed_at,created) VALUES(?,?,?,?,now(),now()) RETURNING id', String(req.body.name || '').trim().slice(0, 80), email, hash, phone);
+      if (needInvite) { const u = await X.run('UPDATE invites SET used_by=?,used_at=now() WHERE code=? AND used_by IS NULL AND (expires_at IS NULL OR expires_at > now())', r.rows[0].id, invite); if (!u.changes) throw Object.assign(new Error('invite'), { bad: true }); } // a code works once
+      return r.rows[0].id;
+    });
+  } catch (e) {
+    if (e.bad) return res.json({ ok: false, msg: 'That invite code is not valid, has expired or was already used.' });
+    if (e.code === '23505') return res.json({ ok: false, msg: /phone/.test(String(e.constraint || e.detail)) ? 'That phone number is already registered.' : 'That email already has an account.' });
+    throw e;
+  }
+  await regen(req); req.session.uid = id; res.json({ ok: true });
 }));
 const DUMMY = bcrypt.hashSync('x', 10);
 app.post('/api/login', limit('login', 10, 15 * 60e3), wrap(async (req, res) => {
@@ -312,16 +341,16 @@ app.post('/api/login', limit('login', 10, 15 * 60e3), wrap(async (req, res) => {
   res.json({ ok: true });
 }));
 app.post('/api/logout', (req, res) => req.session.destroy(() => res.clearCookie('dv.sid').json({ ok: true })));
-app.post('/api/public', wrap(async (req, res) => res.json({ whatsapp: (await cfgAll()).whatsapp || E.WHATSAPP || '' })));
+app.post('/api/public', wrap(async (req, res) => { const c = await cfgAll(); res.json({ whatsapp: c.whatsapp || E.WHATSAPP || '', regMode: c.reg_mode || 'open' }); }));
 const bankAccounts = c => [1, 2].map(i => ({ bank: c['bank' + i + '_bank'] || E['BANK' + i + '_BANK'] || '', name: c['bank' + i + '_name'] || E['BANK' + i + '_NAME'] || '', number: c['bank' + i + '_number'] || E['BANK' + i + '_NUMBER'] || '' })).filter(b => b.bank && b.number);
 app.post('/api/me', auth, wrap(async (req, res) => {
-  const [rows, t, pend, c] = await Promise.all([all('SELECT k,price,cost,active FROM prices'),
+  const [rows, t, pend, c] = await Promise.all([all('SELECT k,price,price_ind,cost,active,agent_only FROM prices'),
     q("SELECT COALESCE(SUM(CASE WHEN status='credited' THEN amt END),0) funded, -COALESCE(SUM(CASE WHEN status!='credited' THEN amt END),0) spent FROM tx WHERE uid=?", req.user.id),
     q("SELECT COUNT(*) n FROM reqs WHERE uid=? AND status='pending'", req.user.id), cfgAll()]);
-  const P = Object.fromEntries(rows.map(r => [r.k, r])), { id, name, email, bal: b, admin } = req.user;
-  res.json({ ok: true, user: { id, name, email, bal: b, admin }, whatsapp: c.whatsapp || E.WHATSAPP || '', paystack: !!E.PAYSTACK_SECRET, paystackLive: paystackLive(c), bankReady: bankAccounts(c).length > 0, passFee: PASS_FEE, twofa: !!req.user.totp_on, funded: t.funded, spent: t.spent, pending: pend.n,
-    services: Object.values(S).map(sv => ({ key: sv.key, group: sv.group, label: sv.label, fields: sv.fields, kind: sv.kind, choices: choicesFor(sv), optional: sv.optional || [], active: !!P[sv.key].active, price: admin && P[sv.key].cost > 0 ? P[sv.key].cost : Math.max(P[sv.key].price, P[sv.key].cost),
-      ...(admin ? { sell: P[sv.key].price, cost: P[sv.key].cost } : {}) })) });
+  const P = Object.fromEntries(rows.map(r => [r.k, r])), { id, name, email, bal: b, admin, phone } = req.user;
+  res.json({ ok: true, user: { id, name, email, bal: b, admin, phone, agentStatus: admin ? 'approved' : req.user.agent_status, agent: req.user.agent }, whatsapp: c.whatsapp || E.WHATSAPP || '', paystack: !!E.PAYSTACK_SECRET, paystackLive: paystackLive(c), bankReady: bankAccounts(c).length > 0, passFee: PASS_FEE, twofa: !!req.user.totp_on, funded: t.funded, spent: t.spent, pending: pend.n,
+    services: Object.values(S).map(sv => ({ key: sv.key, group: sv.group, label: sv.label, fields: sv.fields, kind: sv.kind, choices: choicesFor(sv), optional: sv.optional || [], agentOnly: !!P[sv.key].agent_only, locked: !!P[sv.key].agent_only && !req.user.agent, active: !!P[sv.key].active, price: priceView(P[sv.key], req.user), agentPrice: agentOf(P[sv.key]),
+      ...(admin ? { sell: P[sv.key].price, sellInd: indOf(P[sv.key]), cost: P[sv.key].cost } : {}) })) });
 }));
 app.post('/api/profile', auth, wrap(async (req, res) => {
   if (req.body.name != null) await run('UPDATE users SET name=? WHERE id=?', String(req.body.name).trim().slice(0, 80), req.user.id);
@@ -360,12 +389,42 @@ app.post('/api/2fa/disable', auth, adminOnly, limit('2fa', 10, 15 * 60e3), wrap(
   res.json({ ok: true, msg: 'Two-step login is off.' });
 }));
 
+/* ---------- agent verification ---------- */
+const agentView = a => a && ({ id: a.id, business: a.business, phone: a.phone, address: a.address, state: a.state, regno: a.regno, status: a.status, reason: a.reason || '', at: a.at });
+app.post('/api/agent/status', auth, wrap(async (req, res) => {
+  const a = await q('SELECT id,business,phone,address,state,regno,status,reason,at FROM agent_apps WHERE uid=? ORDER BY id DESC LIMIT 1', req.user.id);
+  res.json({ ok: true, status: req.user.admin ? 'approved' : req.user.agent_status, app: agentView(a), states: STATES, phone: req.user.phone || '' });
+}));
+const AGENT_DOC_MAX = 2.5 * 1024 * 1024;
+app.post('/api/agent/apply', auth, limit('agent', 15, 60 * 60e3), express.json({ limit: '4mb' }), wrap(async (req, res) => {
+  if (req.user.agent) return res.json({ ok: false, msg: 'Your account is already a verified agent.' });
+  if (req.user.agent_status === 'pending') return res.json({ ok: false, msg: 'Your application is already waiting for review.' });
+  const business = String(req.body.business || '').trim(), address = String(req.body.address || '').trim(), state = String(req.body.state || ''), regno = String(req.body.regno || '').trim().slice(0, 40), phone = normPhone(req.body.phone);
+  if (business.length < 2 || business.length > 80) return res.json({ ok: false, msg: 'Enter your business or shop name.' });
+  if (!phone) return res.json({ ok: false, msg: 'Enter a valid Nigerian mobile number we can reach you on.' });
+  if (address.length < 5 || address.length > 160) return res.json({ ok: false, msg: 'Enter your business address.' });
+  if (!STATES.includes(state)) return res.json({ ok: false, msg: 'Choose your state.' });
+  const m = /^data:(image\/jpeg|image\/png|image\/webp|application\/pdf);base64,([A-Za-z0-9+\/=]+)$/.exec(String(req.body.dataUrl || ''));
+  if (!m) return res.json({ ok: false, msg: 'Upload a clear photo (JPG, PNG or WebP) or PDF of a valid ID: NIN slip, voter’s card, driver’s licence, passport or your agent licence.' });
+  const buf = Buffer.from(m[2], 'base64');
+  if (buf.length > AGENT_DOC_MAX) return res.json({ ok: false, msg: 'The document is larger than 2.5 MB. Please upload a smaller photo or PDF.' });
+  if (buf.length < 200 || !MAGIC[m[1]](buf)) return res.json({ ok: false, msg: 'That file is not a valid image or PDF.' });
+  await tx(async X => {
+    await X.run('INSERT INTO agent_apps(uid,business,phone,address,state,regno,doc,doc_name,doc_mime,doc_hash,status) VALUES(?,?,?,?,?,?,?,?,?,?,?)', req.user.id, business, phone, address, state, regno, buf, String(req.body.name || 'document').replace(/[^\w.\- ]/g, '').slice(0, 80) || 'document', m[1], crypto.createHash('sha256').update(buf).digest('hex'), 'pending');
+    await X.run("UPDATE users SET agent_status='pending' WHERE id=?", req.user.id);
+  });
+  await audit('system', 'agent_application', req.user.email + ': ' + business);
+  res.json({ ok: true, status: 'pending' });
+}));
+
 /* ---------- run a service ---------- */
 app.post('/api/run', auth, limit('run', 40, 60e3), wrap(async (req, res) => {
   const base = S[req.body.service]; if (!base) return res.json({ ok: false, msg: 'Unknown service.' });
-  if (!(await px(base.key)).active) return res.json({ ok: false, msg: 'This service is switched off right now.' });
+  const pr0 = await px(base.key);
+  if (!pr0.active) return res.json({ ok: false, msg: 'This service is switched off right now.' });
+  if (pr0.agent_only && !req.user.agent) return res.json({ ok: false, locked: true, msg: 'This service is currently restricted to verified agents. Apply under Agent Verification to use it.' });
   const v = clean(base, req.body.f); if (v.err) return res.json({ ok: false, msg: v.err });
-  const price = await priceFor(base.key, req.user.admin), lock = lockKey(req.user.id + '|' + base.key + '|' + JSON.stringify(v.out));
+  const price = await priceFor(base.key, req.user), lock = lockKey(req.user.id + '|' + base.key + '|' + JSON.stringify(v.out));
   if (!(await getLock(lock))) return res.json({ ok: false, msg: 'This request is already being processed.' });
   let debited = false, settled = false;
   try {
@@ -483,15 +542,15 @@ const adm = [auth, adminOnly];
 const aid = async () => ((await q('SELECT id FROM users WHERE lower(email)=?', ADMIN)) || {}).id || 0;
 app.post('/api/admin/stats', adm, wrap(async (req, res) => {
   const a = await aid(), n = async (s, ...p) => (await q(s, ...p)).n, c = await cfgAll();
-  const [users, held, funded, revenue, pending, today, missing, transfersPending, payPending, payReview, reqReview, reqStuck, ledger, logs] = await Promise.all([
+  const [users, held, funded, revenue, pending, today, missing, transfersPending, payPending, payReview, reqReview, reqStuck, ledger, logs, agentsPending] = await Promise.all([
     n('SELECT COUNT(*) n FROM users'), n('SELECT COALESCE(SUM(bal),0) n FROM users'),
     n("SELECT COALESCE(SUM(amt),0) n FROM tx WHERE status='credited' AND uid!=?", a), n("SELECT -COALESCE(SUM(amt),0) n FROM tx WHERE status!='credited' AND uid!=?", a),
     n("SELECT COUNT(*) n FROM reqs WHERE status IN ('pending','review')"), n("SELECT COUNT(*) n FROM tx WHERE at::date = current_date AND status IN ('success','no record','submitted') AND uid!=?", a),
     n('SELECT COUNT(*) n FROM prices WHERE cost=0'), n("SELECT COUNT(*) n FROM transfers WHERE status='proof_uploaded'"),
     n("SELECT COUNT(*) n FROM pay WHERE status='pending' AND at > now() - interval '2 day'"), n("SELECT COUNT(*) n FROM pay WHERE status='review'"),
     n("SELECT COUNT(*) n FROM reqs WHERE status='review'"), n("SELECT COUNT(*) n FROM reqs WHERE status='pending' AND at < now() - interval '3 day'"),
-    n('SELECT COALESCE(SUM(amt),0) n FROM tx'), all('SELECT at,admin,action,detail FROM admin_log ORDER BY id DESC LIMIT 15')]);
-  res.json({ ok: true, users, held, funded, revenue, pending, today, missing, paystack: !!E.PAYSTACK_SECRET, bankReady: bankAccounts(c).length > 0, transfersPending, payPending, payReview, reqReview, reqStuck, ledger: ledger + Number(c.ledger_base || (await getSet('ledger_base')) || 0), logs });
+    n('SELECT COALESCE(SUM(amt),0) n FROM tx'), all('SELECT at,admin,action,detail FROM admin_log ORDER BY id DESC LIMIT 15'), n("SELECT COUNT(*) n FROM agent_apps WHERE status='pending'")]);
+  res.json({ ok: true, users, held, funded, revenue, pending, today, missing, paystack: !!E.PAYSTACK_SECRET, bankReady: bankAccounts(c).length > 0, transfersPending, payPending, payReview, reqReview, reqStuck, agentsPending, ledger: ledger + Number(c.ledger_base || (await getSet('ledger_base')) || 0), logs });
 }));
 app.post('/api/admin/payments', adm, wrap(async (req, res) => res.json({ ok: true, rows: await all('SELECT p.ref,p.amt,COALESCE(p.charged,p.amt) charged,p.status,p.at,u.email FROM pay p LEFT JOIN users u ON u.id=p.uid ORDER BY p.at DESC NULLS LAST, p.ref DESC LIMIT 300') })));
 app.post('/api/admin/pay/recheck', adm, wrap(async (req, res) => {
@@ -607,9 +666,47 @@ app.post('/api/admin/result', adm, wrap(async (req, res) => {
   await audit(req.user.email, 'open_result', r.label + ' #' + r.id + ' (' + r.email + ')'); res.json({ ok: true, ...r, info });
 }));
 app.post('/api/admin/result/delete', adm, wrap(async (req, res) => { await run('DELETE FROM results WHERE id=?', Number(req.body.id) || 0); await audit(req.user.email, 'delete_result', '#' + req.body.id); res.json({ ok: true }); }));
+app.post('/api/admin/agents', adm, wrap(async (req, res) => res.json({ ok: true, mode: (await cfgAll()).reg_mode || 'open', rows: await all(`SELECT a.id,a.business,a.phone,a.address,a.state,a.regno,a.status,a.reason,a.at,a.doc_name,a.doc IS NOT NULL AS has_doc,u.email,u.name,
+  (SELECT x.id FROM agent_apps x WHERE x.doc_hash IS NOT NULL AND x.doc_hash=a.doc_hash AND x.id!=a.id LIMIT 1) AS dup
+  FROM agent_apps a JOIN users u ON u.id=a.uid ORDER BY CASE a.status WHEN 'pending' THEN 0 ELSE 1 END, a.upd DESC LIMIT 200`) })));
+app.get('/api/admin/agent/:id/doc', auth, adminOnly, wrap(async (req, res) => {
+  const a = await q('SELECT doc,doc_mime,id FROM agent_apps WHERE id=?', Number(req.params.id) || 0);
+  if (!a || !a.doc) return res.status(404).send('No document.');
+  res.set({ 'Content-Type': a.doc_mime, 'Content-Disposition': 'inline; filename="agent-document-' + a.id + '"', 'Cache-Control': 'no-store' }); res.send(a.doc);
+}));
+app.post('/api/admin/agent/decide', adm, wrap(async (req, res) => {
+  const a = await q('SELECT id,uid FROM agent_apps WHERE id=?', Number(req.body.id) || 0); if (!a) return res.json({ ok: false, msg: 'Application not found.' });
+  const approve = !!req.body.approve, reason = String(req.body.reason || '').trim().slice(0, 300);
+  if (!approve && reason.length < 5) return res.json({ ok: false, msg: 'Tell the applicant briefly why it was rejected.' });
+  const done = await tx(async X => {
+    if (!(await X.run("UPDATE agent_apps SET status=?,reason=?,decided_by=?,upd=now() WHERE id=? AND status='pending'", approve ? 'approved' : 'rejected', approve ? '' : reason, req.user.email, a.id)).changes) return false;
+    await X.run('UPDATE users SET agent_status=? WHERE id=?', approve ? 'approved' : 'rejected', a.uid); return true;
+  });
+  if (!done) return res.json({ ok: false, msg: 'This application was already decided.' });
+  await audit(req.user.email, approve ? 'approve_agent' : 'reject_agent', '#' + a.id + (approve ? '' : ': ' + reason));
+  res.json({ ok: true, msg: approve ? 'Approved. The user can now use agent services.' : 'Rejected. The applicant can apply again.' });
+}));
+app.post('/api/admin/user/agent', adm, wrap(async (req, res) => {
+  const u = await q('SELECT id,email FROM users WHERE id=?', Number(req.body.id) || 0); if (!u) return res.json({ ok: false, msg: 'User not found.' });
+  const st = req.body.status === 'approved' ? 'approved' : 'none';
+  await run('UPDATE users SET agent_status=? WHERE id=?', st, u.id); await audit(req.user.email, st === 'approved' ? 'make_agent' : 'revoke_agent', u.email);
+  res.json({ ok: true, msg: st === 'approved' ? 'User is now a verified agent.' : 'Agent access removed.' });
+}));
+app.post('/api/admin/regmode', adm, wrap(async (req, res) => {
+  const mode = ['open', 'invite', 'closed'].includes(req.body.mode) ? req.body.mode : null; if (!mode) return res.json({ ok: false, msg: 'Choose open, invite or closed.' });
+  await setSet('reg_mode', mode); await audit(req.user.email, 'registration_mode', mode); res.json({ ok: true, msg: 'Registration is now ' + mode + '.' });
+}));
+app.post('/api/admin/invites', adm, wrap(async (req, res) => res.json({ ok: true, rows: await all('SELECT i.code,i.note,i.created,i.expires_at,i.used_at,u.email AS used_email FROM invites i LEFT JOIN users u ON u.id=i.used_by ORDER BY i.created DESC LIMIT 200') })));
+app.post('/api/admin/invite/create', adm, limit('invite', 30, 60 * 60e3), wrap(async (req, res) => {
+  const days = Math.min(Math.max(Math.floor(Number(req.body.days)) || 7, 1), 90), note = String(req.body.note || '').trim().slice(0, 80);
+  const AL = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789', code = 'DV-' + Array.from(crypto.randomBytes(8), b => AL[b % AL.length]).join('');
+  await run("INSERT INTO invites(code,note,expires_at) VALUES(?,?,now() + (?::int * interval '1 day'))", code, note, days);
+  await audit(req.user.email, 'create_invite', code + (note ? ' (' + note + ')' : '')); res.json({ ok: true, code });
+}));
+app.post('/api/admin/invite/delete', adm, wrap(async (req, res) => { await run('DELETE FROM invites WHERE code=? AND used_by IS NULL', String(req.body.code || '')); res.json({ ok: true }); }));
 app.post('/api/admin/users', adm, wrap(async (req, res) => {
   const s = '%' + String(req.body.q || '').trim().toLowerCase() + '%';
-  res.json({ ok: true, rows: await all("SELECT id,name,email,bal,active FROM users WHERE lower(email) LIKE ? OR lower(COALESCE(name,'')) LIKE ? ORDER BY id DESC LIMIT 300", s, s) });
+  res.json({ ok: true, rows: await all("SELECT id,name,email,phone,agent_status,bal,active FROM users WHERE lower(email) LIKE ? OR lower(COALESCE(name,'')) LIKE ? ORDER BY id DESC LIMIT 300", s, s) });
 }));
 app.post('/api/admin/user/status', adm, wrap(async (req, res) => {
   const u = await q('SELECT id,email FROM users WHERE id=?', Number(req.body.id) || 0); if (!u) return res.json({ ok: false, msg: 'User not found.' });
@@ -624,10 +721,11 @@ app.post('/api/admin/user/reset', adm, wrap(async (req, res) => {
   res.json({ ok: true, temp, msg: 'Temporary password set. Share it with the user privately.' });
 }));
 app.post('/api/admin/price', adm, wrap(async (req, res) => {
-  const { key, price, cost, active } = req.body, p = Math.floor(Number(price)), c = Math.floor(Number(cost) || 0);
-  if (!S[key] || !(p >= 0) || !(c >= 0)) return res.json({ ok: false, msg: 'Enter valid amounts.' });
-  if (c > 0 && p < c) return res.json({ ok: false, msg: 'Customer price cannot be lower than the provider price (' + c + ').' });
-  await run('UPDATE prices SET price=?,cost=?,active=? WHERE k=?', p, c, active ? 1 : 0, key); await audit(req.user.email, 'set_price', `${key}: sell ${p}, provider ${c}, ${active ? 'on' : 'off'}`);
+  const { key, price, priceInd, cost, active, agentOnly } = req.body, p = Math.floor(Number(price)), c = Math.floor(Number(cost) || 0), pi = priceInd == null || priceInd === '' ? 0 : Math.floor(Number(priceInd));
+  if (!S[key] || !(p >= 0) || !(c >= 0) || !(pi >= 0)) return res.json({ ok: false, msg: 'Enter valid amounts.' });
+  if (c > 0 && p < c) return res.json({ ok: false, msg: 'Agent price cannot be lower than the provider price (' + c + ').' });
+  if (pi > 0 && pi < p) return res.json({ ok: false, msg: 'Individual price cannot be lower than the agent price (' + p + '). Individuals must pay more than agents.' });
+  await run('UPDATE prices SET price=?,price_ind=?,cost=?,active=?,agent_only=COALESCE(?::int,agent_only) WHERE k=?', p, pi, c, active ? 1 : 0, agentOnly == null ? null : (agentOnly ? 1 : 0), key); await audit(req.user.email, 'set_price', `${key}: agent ${p}, individual ${pi || 'auto'}, provider ${c}, ${active ? 'on' : 'off'}${agentOnly == null ? '' : agentOnly ? ', agents only' : ', open to all'}`);
   res.json({ ok: true, msg: 'Saved.' });
 }));
 app.post('/api/admin/sync-prices', adm, wrap(async (req, res) => {
@@ -654,6 +752,7 @@ async function jobs() {
     await run("DELETE FROM results WHERE at < now() - interval '30 day'");
     await run("UPDATE transfers SET proof=NULL WHERE proof IS NOT NULL AND status IN ('approved','rejected','cancelled') AND upd < now() - interval '90 day'");
     await run("UPDATE reqs SET result=? WHERE status='completed' AND at < now() - interval '7 day' AND result NOT LIKE '%has expired%'", '{"data":{"note":"This result has expired and was deleted for your privacy."},"pdf":null}');
+    await run("UPDATE agent_apps SET doc=NULL WHERE doc IS NOT NULL AND status='rejected' AND upd < now() - interval '90 day'");
     await run('DELETE FROM sess WHERE exp < ?', Date.now()); await run("DELETE FROM rate WHERE at < now() - interval '1 day'"); await run("DELETE FROM locks WHERE at < now() - interval '10 minutes'");
   } catch (e) { console.error('job error', e.message); out.error = true; }
   return out;

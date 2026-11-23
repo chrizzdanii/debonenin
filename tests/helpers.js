@@ -3,12 +3,15 @@ const { Client } = require('pg'), fs = require('fs'), path = require('path');
 const ADMIN_URL = process.env.TEST_DATABASE_URL;
 exports.skip = ADMIN_URL ? false : 'Set TEST_DATABASE_URL to a Postgres you can create databases in (see README) to run these tests.';
 const conv = s => { let i = 0; return s.replace(/\?/g, () => '$' + (++i)); };
-exports.newDb = async () => {
+exports.phone = () => '080' + String(Math.floor(Math.random() * 1e8)).padStart(8, '0'); // a valid, practically unique Nigerian mobile number
+exports.newDb = async (opts = {}) => {
   const name = 'dvt_' + Date.now() + '_' + Math.floor(Math.random() * 1e6), admin = new Client({ connectionString: ADMIN_URL });
   await admin.connect(); await admin.query('CREATE DATABASE ' + name);
   const u = new URL(ADMIN_URL); u.pathname = '/' + name;
   const c = new Client({ connectionString: u.toString() }); await c.connect();
   for (const f of ['1-schema.sql', '2-app-user.sql']) await c.query(fs.readFileSync(path.join(__dirname, '..', 'supabase', f), 'utf8'));
+  if (opts.autoApprove !== false) await c.query(`create or replace function dv_test_approve() returns trigger language plpgsql as $$ begin new.agent_status := 'approved'; return new; end $$;
+    create trigger dv_test_approve before insert on users for each row execute function dv_test_approve();`); // test databases start with every user already a verified agent, so older tests are unaffected
   const app = new URL(u.toString()); app.username = 'dv_app'; app.password = 'CHANGE_THIS_PASSWORD'; // tests run the website as the restricted user
   return {
     url: app.toString(), adminUrl: u.toString(),

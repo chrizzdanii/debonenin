@@ -13,7 +13,7 @@ test.before(async () => {
     const m = req.url.match(/verify\/(.+)$/); const t = m && paid[m[1]]; res.end(JSON.stringify(t ? { status: true, data: { status: t.status, amount: t.amount, currency: 'NGN' } } : { status: false })); }); }).listen(FAKE);
   proc = spawn(process.execPath, ['server.js'], { cwd: path.join(__dirname, '..'), env: { ...process.env, PORT, DATABASE_URL: db.url, PAYSTACK_SECRET: SECRET, PAYSTACK_ENABLED: '1', PS_BASE: 'http://127.0.0.1:' + FAKE, VP_BASE: 'http://127.0.0.1:9/', ADMIN_EMAIL: 'boss@test.com', BASE_URL: URL } });
   for (let i = 0; i < 30; i++) { try { if ((await fetch(URL + '/health')).ok) break; } catch {} await new Promise(r => setTimeout(r, 200)); }
-  await call('register', { email: 'pay@test.com', pass: 'secret123', agree: true });
+  await call('register', { email: 'pay@test.com', pass: 'secret123', agree: true, phone: H.phone() });
 });
 test.after(async () => { proc.kill(); fake.close(); await db.drop(); });
 const ref = u => u.split('/').pop();
@@ -47,6 +47,6 @@ test('a forged webhook is rejected and credits nothing', async () => {
 });
 test("one user cannot verify another user's payment", async () => {
   const r = await call('pay/init', { amount: 1000 }); cookie = '';
-  await call('register', { email: 'other@test.com', pass: 'secret123', agree: true });
+  await call('register', { email: 'other@test.com', pass: 'secret123', agree: true, phone: H.phone() });
   assert.equal((await call('pay/verify', { ref: ref(r.url) })).ok, false);
 });

@@ -30,13 +30,13 @@ test('rejects non-JSON posts (CSRF guard)', async () => {
   assert.equal(r.status, 415);
 });
 test('registration needs agreement and a strong password', async () => {
-  assert.equal((await call('x', 'register', { email: 'a@test.com', pass: 'secret123' })).ok, false);
-  assert.equal((await call('x', 'register', { email: 'a@test.com', pass: 'short', agree: true })).ok, false);
+  assert.equal((await call('x', 'register', { email: 'a@test.com', pass: 'secret123', phone: H.phone() })).ok, false); // no agreement
+  assert.equal((await call('x', 'register', { email: 'a@test.com', pass: 'short', agree: true, phone: H.phone() })).ok, false);
 });
 test('admin and customer accounts', async () => {
-  assert.equal((await call('admin', 'register', { name: 'Boss', email: 'boss@test.com', pass: 'secret123', agree: true })).ok, true);
-  assert.equal((await call('ann', 'register', { name: 'Ann', email: 'ann@test.com', pass: 'secret123', agree: true })).ok, true);
-  assert.equal((await call('ann', 'register', { email: 'ann@test.com', pass: 'secret123', agree: true })).ok, false);
+  assert.equal((await call('admin', 'register', { name: 'Boss', email: 'boss@test.com', pass: 'secret123', agree: true, phone: H.phone() })).ok, true);
+  assert.equal((await call('ann', 'register', { name: 'Ann', email: 'ann@test.com', pass: 'secret123', agree: true, phone: H.phone() })).ok, true);
+  assert.equal((await call('ann', 'register', { email: 'ann@test.com', pass: 'secret123', agree: true, phone: H.phone() })).ok, false);
   assert.equal((await call('admin', 'me')).user.admin, true);
   assert.equal((await call('ann', 'me')).user.admin, false);
 });

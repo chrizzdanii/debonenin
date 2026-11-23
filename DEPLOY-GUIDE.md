@@ -7,6 +7,68 @@ Time needed: about 1 to 1.5 hours the first time.
 
 ---
 
+# UPDATING A SITE THAT IS ALREADY LIVE (version 5: agent price and individual price)
+
+**What changed.** Every service is now open to everyone. There are two prices:
+- **Agent price** = the price you already had. It does not change. Only verified agents pay it.
+- **Individual price** = a higher price for people who are not verified. They can use every service straight away; if they want the lower price they apply under *Agent Verification*.
+
+**1. Update the database (Supabase) - do this BEFORE uploading the code.**
+- SQL Editor -> **New query** -> paste the whole of `supabase/1-schema.sql` -> **Run**. (It adds one column, `price_ind`, to the `prices` table. It is safe to run again.)
+- You do not need to run `2-app-user.sql` again.
+
+**2. Update the code (GitHub).** Repository -> **Add file -> Upload files**, drag in everything from the new folder -> **Commit changes**.
+
+**3. Wait for Vercel** to say Ready, then open `https://your-site/health`: it must show `{"ok":true}`. (An error mentioning "missing the newest tables" means step 1 was not done.)
+
+**4. Check the new prices (as admin): Admin -> Set Prices.** The first time the site starts it fills in the individual prices for you: agent price + 50%, rounded up to the next N50, and at least N100 more. For example:
+
+| Agent price | Individual price |
+|---|---|
+| N150 | N250 |
+| N200 | N300 |
+| N300 | N450 |
+| N400 | N600 |
+| N800 | N1,200 |
+| N1,800 | N2,700 |
+
+Change any **Individual price** box you like and press **Save**. Rules: an individual price can never be lower than the agent price, and the agent price can never be lower than your provider price. Entering 0 in the Individual price box puts that service back on the automatic formula.
+
+**What else changed**
+- All services were unlocked once, so unverified users can use them. The **Agents only** switch still exists if you ever want to lock one service completely.
+- Customers who are not agents see a small note on each service: "Verified agents pay N___ for this".
+- The admin still pays the provider price. Existing verified agents keep paying the agent price.
+- A request's price is fixed when it is made, so refunds always return exactly what the person paid.
+
+---
+
+# UPDATING A SITE THAT IS ALREADY LIVE (version 4: agent verification)
+
+Do these in this exact order. If you upload the code before running the SQL, the site shows errors until you run it.
+
+**1. Update the database (Supabase).**
+- SQL Editor -> **New query** -> paste the whole of `supabase/1-schema.sql` -> **Run**.
+- SQL Editor -> **New query** -> paste the whole of `supabase/2-app-user.sql` -> **Run**. Do not change anything in it: the `dv_app` user already exists, so your password keeps working.
+- **Check:** Table Editor now also shows `agent_apps` and `invites`.
+- Your existing users are automatically marked as verified agents, so nobody is suddenly locked out. Remove any you do not trust later in **Admin -> Users -> Remove agent**.
+
+**2. Update the code (GitHub).** Open your repository -> **Add file -> Upload files**, drag in everything from the new folder (same file names are replaced) -> **Commit changes**.
+
+**3. Wait for Vercel.** It redeploys by itself. Open the **Deployments** tab until it says Ready, then open `https://your-site/health`: it must show `{"ok":true}`. (If it shows an error mentioning "missing the newest tables", step 1 was not done.)
+
+**4. Set up the new controls (as admin).**
+- **Admin -> Agents & Invites -> Who can register:** choose **Open** (anyone can register, but locked services stay blocked until you verify them), **Invite only** (a person needs a one-time code from you) or **Closed**.
+- **Admin -> Set Prices -> "Agents only" switch:** shows which services are locked for unverified users. NIN, BVN, phone, demographic, IPE, validation, personalisation, voter's card, driver's licence, passport, TIN-by-NIN/phone and BVN+bank are locked to start with. Change any you like.
+
+**What is new**
+- Everyone must give a mobile number when registering (one account per number). A hidden trap field stops simple bots.
+- Registration modes: open, invite only, closed (the admin email can always register).
+- Agent verification: a user applies with business details and an ID document; you approve or reject in Admin -> Agents & Invites. Until approved, locked services are blocked on the server, not just hidden.
+- The site opens in the purple theme by default (people can still switch to dark mode, and it remembers their choice).
+- The wallet balance is hidden until the eye icon is pressed.
+
+---
+
 ## STEP 0. What you need
 - A **GitHub** account (free), a **Supabase** account, a **Vercel** account (sign up with GitHub).
 - Your **verifyplatform API key** (a NEW one, see Step 9), your **Paystack** keys (start with the *test* secret key `sk_test_...`).
@@ -112,8 +174,9 @@ After changing an environment variable in Vercel: **Deployments -> the latest ->
 1. Open your site, click **Create one now**, register with exactly your `ADMIN_EMAIL`. This account is the admin.
 2. **Admin -> Support Settings -> Two-step login -> Set up.** Install Google Authenticator on your phone, add the key shown, enter the 6-digit code. From now on admin sign-in needs a code. **Write the setup key down and keep it safe.**
 3. **Admin -> Bank transfer details:** enter your account(s) if you accept bank transfers.
-4. **Admin -> Set Prices:** check provider prices and your customer prices.
-5. **Admin -> Admin Overview -> Check provider connection:** it should say verifyplatform replied. Fund your verifyplatform wallet if needed.
+4. **Admin -> Set Prices:** check the provider prices, the agent prices and the individual prices.
+5. **Admin -> Agents & Invites:** choose who can register (Open / Invite only / Closed).
+6. **Admin -> Admin Overview -> Check provider connection:** it should say verifyplatform replied. Fund your verifyplatform wallet if needed.
 
 ## STEP 11. Your own domain
 1. Vercel -> project -> **Settings -> Domains** -> add `verify.yourdomain.com` and follow the DNS instructions at your domain registrar.

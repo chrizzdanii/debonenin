@@ -23,8 +23,8 @@ test.before(async () => {
     send(res, { status: 'error' }); }); }).listen(FAKE);
   proc = spawn(process.execPath, ['server.js'], { cwd: path.join(__dirname, '..'), env: { ...process.env, REQ_CHECK_COOLDOWN: '0', PORT, DATABASE_URL: db.url, ADMIN_EMAIL: 'boss@test.com', VP_API_KEY: 'test', VP_BASE: 'http://127.0.0.1:' + FAKE + '/', PS_BASE: 'http://127.0.0.1:' + FAKE, PAYSTACK_SECRET: 'sk_test_safety', PAYSTACK_ENABLED: '1', BASE_URL: 'https://yourdomain.com' } });
   for (let i = 0; i < 30; i++) { try { if ((await fetch(URL + '/health')).ok) break; } catch {} await new Promise(r => setTimeout(r, 200)); }
-  await call('admin', 'register', { email: 'boss@test.com', pass: 'secret123', agree: true });
-  await call('cust', 'register', { email: 'cust@test.com', pass: 'secret123', agree: true });
+  await call('admin', 'register', { email: 'boss@test.com', pass: 'secret123', agree: true, phone: H.phone() });
+  await call('cust', 'register', { email: 'cust@test.com', pass: 'secret123', agree: true, phone: H.phone() });
 });
 test.after(async () => { proc.kill(); fake.close(); await db.drop(); });
 const fund = async (who, n) => { const r = await call(who, 'pay/init', { amount: n }); const ref = r.url.split('/').pop(); paid[ref].status = 'success'; await call(who, 'pay/verify', { ref }); return r; };

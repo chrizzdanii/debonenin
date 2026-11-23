@@ -32,14 +32,14 @@ receipt:'<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/>',buil
 chart:'<path d="M4 20V4M4 20h16M8 16v-5M12 16V8M16 16v-8"/>',arrow:'<path d="M5 12h14M13 6l6 6-6 6"/>',
 down:'<path d="M12 4v12M6 12l6 6 6-6"/>',card:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/>'};
 const logoEl=()=>{const d=h('div',{class:'logo'},'D'),im=h('img',{src:'/logo.png',alt:'DEBONE'});im.onload=()=>d.replaceChildren(im);return d};
-try{document.documentElement.dataset.theme=localStorage.getItem('theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light')}catch{}
+try{document.documentElement.dataset.theme=localStorage.getItem('theme')||'light'}catch{}
 const flipTheme=()=>{const t=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=t;try{localStorage.setItem('theme',t)}catch{}};
 const ic=(n,s=18)=>h('span',{class:'ic',html:'<svg width="'+s+'" height="'+s+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'+(I[n]||'')+'</svg>'});
 const N=n=>'₦'+Number(n||0).toLocaleString('en-NG');
 const fmt=s=>{const t=String(s),d=new Date(/(Z|[+-]\d\d:?\d\d)$/.test(t)?t:t.replace(' ','T')+'Z');return isNaN(d)?s:d.toLocaleString('en-NG',{dateStyle:'medium',timeStyle:'short'})};
 const api=(a,d={})=>fetch('/api/'+a,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)}).then(r=>r.json()).catch(()=>({ok:false,msg:'Network problem. Check your connection and try again.'}));
 function toast(t){const e=h('div',{class:'toast'},t);document.body.append(e);setTimeout(()=>e.remove(),4200)}
-let ME=null,CF={},SV={},PAGES=[],hideBal=false,tabSel='All Services',tileQ='';
+let ME=null,CF={},SV={},PAGES=[],hideBal=true,tabSel='All Services',tileQ='';
 const root=$('#root');
 const copyTxt=t=>{navigator.clipboard&&navigator.clipboard.writeText(t).then(()=>toast('Copied'))};
 const greet=()=>{const x=new Date().getHours();return x<12?'Good Morning':x<17?'Good Afternoon':'Good Evening'};
@@ -62,6 +62,7 @@ const TERMS=[['Authorised use','Use these services only with the consent of the 
 ['Data protection','We handle personal data in line with the Nigeria Data Protection Act 2023. Results are shown to you on screen. So that a lost download can be recovered and disputes can be settled, a copy of each successful result is kept for up to 30 days, visible only to our administrator, then deleted. Results of agency requests (IPE, validation, personalisation) are kept for 7 days so you can collect them. We do not sell data.'],
 ['Payments','All wallet funding is done through Paystack. We never see or store your card details. Paystack charges a processing fee; it is shown before you pay and is added to your payment, so your wallet is credited with the full amount you choose. Wallet balances are used only for services on this site.'],
 ['Charges and refunds','The price is shown before every check. If a check cannot be completed, or an agency request fails, the fee returns to your wallet automatically. Some lookup services charge even when no record is found; the result screen says so.'],
+['Agent verification','Everyone can use every service. Verified agents pay lower prices than individuals. To apply you give your business details and upload an ID document. We use them only to decide your application and keep them while your account is active (documents of rejected applications are deleted after 90 days). Only our administrator can see them.'],
 ['Your account','Keep your password private. Accounts used for fraud or abuse may be suspended without notice.']];
 function showTerms(){modal('Terms & Privacy',TERMS.map(([t,b])=>[h('h4',{style:'margin:14px 0 4px'},t),h('p',{class:'mut'},b)]))}
 document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.modal').forEach(x=>x.remove())});
@@ -72,13 +73,15 @@ async function authView(){
   const name=h('input',{type:'text',placeholder:'Your full name',autocomplete:'name'}),email=h('input',{type:'email',placeholder:'name@example.com',autocomplete:'email'}),pass=h('input',{type:'password',placeholder:'Password',autocomplete:'current-password'});
   const eye=h('button',{type:'button','aria-label':'Show or hide password',on:{click:()=>{pass.type=pass.type==='password'?'text':'password'}}},ic('eye'));
   const msg=h('div',{class:'msg',role:'alert'}),go=h('button',{class:'btn w'},'Sign in to account'),title=h('h2',{},'Welcome back'),sub=h('p',{class:'mut'},'Enter your credentials to securely access your account dashboard.');
-  const nmW=h('div',{class:'hide'},h('label',{class:'lbl'},'Full name'),h('div',{class:'ig'},ic('user'),name));
+  const phone=h('input',{type:'tel',placeholder:'08012345678',autocomplete:'tel',inputmode:'numeric',maxlength:16}),invite=h('input',{placeholder:'DV-XXXXXXXX',autocomplete:'off',maxlength:20}),trap=h('input',{name:'website',tabindex:'-1',autocomplete:'off','aria-hidden':'true',style:'position:absolute;left:-9999px;opacity:0;height:0;width:0'});
+  const nmW=h('div',{class:'hide'},h('label',{class:'lbl'},'Full name'),h('div',{class:'ig'},ic('user'),name),h('label',{class:'lbl'},'Mobile number'),h('div',{class:'ig'},ic('phone'),phone),pub.regMode==='invite'?[h('label',{class:'lbl'},'Invite code'),h('div',{class:'ig'},ic('badge'),invite),h('p',{class:'mut',style:'font-size:12px;margin-top:6px'},'Registration is by invitation. Ask us for a code.')]:null,trap);
   const agree=h('input',{type:'checkbox'});
   const agW=h('label',{class:'hide',style:'display:flex;gap:10px;align-items:flex-start;font-size:13px;color:var(--mut);margin-top:14px'},agree,h('span',{},'I agree to the ',h('a',{href:'#',style:'color:var(--y)',on:{click:e=>{e.preventDefault();showTerms()}}},'Terms & Privacy'),' and will only verify details with the owner’s consent.'));
   const sw=h('a',{href:'#',style:'color:var(--y);font-weight:700'},'Create one now'),q=h('span',{class:'mut'},"Don't have an account? ");
+  if(pub.regMode==='closed'){sw.classList.add('hide');q.textContent='New registrations are closed right now. Please contact support.'}
   sw.onclick=e=>{e.preventDefault();reg=!reg;nmW.classList.toggle('hide',!reg);agW.classList.toggle('hide',!reg);pass.autocomplete=reg?'new-password':'current-password';pass.placeholder=reg?'At least 8 characters':'Password';title.textContent=reg?'Create account':'Welcome back';go.textContent=reg?'Create account':'Sign in to account';q.textContent=reg?'Already registered? ':"Don't have an account? ";sw.textContent=reg?'Sign in':'Create one now';msg.textContent=''};
   const code=h('input',{placeholder:'123456',inputmode:'numeric',autocomplete:'one-time-code',maxlength:7}),codeW=h('div',{class:'hide'},h('label',{class:'lbl'},'Authenticator code'),h('div',{class:'ig'},ic('shield'),code));
-  const submit=async()=>{if(reg&&!agree.checked){msg.textContent='Please accept the Terms & Privacy to continue.';return}go.disabled=true;const r=await api(reg?'register':'login',{name:name.value,email:email.value,pass:pass.value,agree:agree.checked,code:code.value});go.disabled=false;if(r.ok)boot();else{if(r.needCode){codeW.classList.remove('hide');code.focus()}msg.textContent=r.msg||'Something went wrong.'}};
+  const submit=async()=>{if(reg&&!agree.checked){msg.textContent='Please accept the Terms & Privacy to continue.';return}go.disabled=true;const r=await api(reg?'register':'login',{name:name.value,email:email.value,pass:pass.value,agree:agree.checked,code:code.value,phone:phone.value,invite:invite.value,website:trap.value});go.disabled=false;if(r.ok)boot();else{if(r.needCode){codeW.classList.remove('hide');code.focus()}msg.textContent=r.msg||'Something went wrong.'}};
   go.onclick=submit;pass.addEventListener('keydown',e=>{if(e.key==='Enter')submit()});code.addEventListener('keydown',e=>{if(e.key==='Enter')submit()});
   const fc=(i,t,d)=>h('div',{class:'fcard'},ic(i,20),h('div',{},h('b',{},t),h('span',{},d)));
   root.replaceChildren(h('div',{class:'auth'},
@@ -110,11 +113,11 @@ function buildPages(list){
 }
 const NAV=()=>[
   ['MAIN PORTAL',[['dashboard','Dashboard','dash','Live']]],
-  ...(ME.admin?[['ADMIN',[['a/overview','Admin Overview','chart'],['a/prices','Set Prices','tag'],['a/transfers','Bank Transfers','bank'],['a/payments','Paystack Payments','card'],['a/requests','Agency Requests','file'],['a/results','Saved Results','file'],['a/users','Users','users'],['a/settings','Support Settings','gear']]]]:[]),
+  ...(ME.admin?[['ADMIN',[['a/overview','Admin Overview','chart'],['a/prices','Set Prices','tag'],['a/transfers','Bank Transfers','bank'],['a/payments','Paystack Payments','card'],['a/requests','Agency Requests','file'],['a/results','Saved Results','file'],['a/agents','Agents & Invites','badge'],['a/users','Users','users'],['a/settings','Support Settings','gear']]]]:[]),
   ['FINANCE & WALLET',[['wallet','My Wallet','wallet'],['deposit','Deposit / Fund','plus'],['transactions','Transactions','swap']]],
   ['IDENTITY & VERIFICATIONS',[['nin','NIN Verification','finger'],['phone','NIN via Phone','phone'],['demo','NIN Demographic','demo'],['bvn','BVN Verification','shieldck'],['more','More Verifications','idcard']]],
   ['NIN SERVICES',[['ipe','IPE Clearance','shield'],['personalization','NIN Personalisation','badge'],['validation','NIN Validation','circle'],['requests','My Requests','file']]],
-  ['ACCOUNT & SUPPORT',[['profile','Profile Settings','user'],['wa','Direct WhatsApp','wa','24/7'],['logout','Log Out','out']]]];
+  ['ACCOUNT & SUPPORT',[['agent','Agent Verification','badge'],['profile','Profile Settings','user'],['wa','Direct WhatsApp','wa','24/7'],['logout','Log Out','out']]]];
 const curView=()=>location.hash.slice(2)||'dashboard';
 function sidebar(){
   const sb=h('aside',{class:'sb'},h('div',{class:'top'},h('div',{class:'brand'},logoEl(),h('div',{},h('b',{},'DEBONE'),h('small',{},'DIGITAL HUB'))),h('button',{'aria-label':'Collapse menu',on:{click:toggleSide}},ic('chev',20))));
@@ -155,7 +158,7 @@ function render(){
   const p=PAGES.find(x=>x.id===v);
   if(p)return pageView(m,p);
   if(v.startsWith('transfer/'))return transferPage(m,decodeURIComponent(v.slice(9)));
-  const map={dashboard,wallet,deposit,transactions,requests,profile,more,'a/transfers':aTransfers,'a/overview':aOverview,'a/prices':aPrices,'a/users':aUsers,'a/results':aResults,'a/payments':aPayments,'a/requests':aRequests,'a/settings':aSettings};
+  const map={agent:agentPage,'a/agents':aAgents,dashboard,wallet,deposit,transactions,requests,profile,more,'a/transfers':aTransfers,'a/overview':aOverview,'a/prices':aPrices,'a/users':aUsers,'a/results':aResults,'a/payments':aPayments,'a/requests':aRequests,'a/settings':aSettings};
   if(v.startsWith('a/')&&!ME.admin)return location.hash='#/dashboard';
   (map[v]||dashboard)(m);
 }
@@ -169,13 +172,13 @@ function hero(){
     h('div',{class:'hf'},h('div',{class:'acct'},ic('shield',16),'Fund securely with Paystack: card, bank transfer or USSD'),
       h('div',{class:'bt'},h('a',{class:'btn lt',href:'#/deposit'},ic('plus',16),'Fund Wallet'),h('a',{class:'btn dk',href:'#/wallet'},'Wallet Hub',ic('arrow',14)))));
 }
-const tile=(t,i,hot,href,n)=>h('a',{class:'tile',href},h('div',{class:'tc c'+(n%5)},ic(i,24),hot?h('i',{class:'hot'},'HOT'):null),h('span',{},t));
+const tile=(t,i,hot,href,n,lock)=>h('a',{class:'tile',href},h('div',{class:'tc c'+(n%5)},ic(i,24),hot&&!lock?h('i',{class:'hot'},'HOT'):null,lock?h('i',{class:'hot lk'},'AGENTS'):null),h('span',{},t));
 function dashboard(m){
   const box=h('div',{class:'tiles'});
   const tabs=['All Services','Identity','NIN Agency','Business & ID',...(ME.admin?['Admin']:[])];
-  const ADM=[['a/overview','Admin Overview','chart'],['a/prices','Set Prices','tag'],['a/transfers','Bank Transfers','bank'],['a/payments','Paystack Payments','card'],['a/requests','Agency Requests','file'],['a/results','Saved Results','file'],['a/users','Users','users'],['a/settings','Support Settings','gear']];
+  const ADM=[['a/overview','Admin Overview','chart'],['a/prices','Set Prices','tag'],['a/transfers','Bank Transfers','bank'],['a/payments','Paystack Payments','card'],['a/requests','Agency Requests','file'],['a/results','Saved Results','file'],['a/agents','Agents & Invites','badge'],['a/users','Users','users'],['a/settings','Support Settings','gear']];
   const draw=()=>{box.replaceChildren();let n=0;const t=tileQ.toLowerCase();
-    if(tabSel!=='Admin')PAGES.filter(p=>(tabSel==='All Services'||p.tab===tabSel)&&p.t.toLowerCase().includes(t)).forEach(p=>box.append(tile(p.t,p.i,p.hot,'#/'+p.id,n++)));
+    if(tabSel!=='Admin')PAGES.filter(p=>(tabSel==='All Services'||p.tab===tabSel)&&p.t.toLowerCase().includes(t)).forEach(p=>box.append(tile(p.t,p.i,p.hot,'#/'+p.id,n++,p.keys.every(k=>SV[k].locked))));
     if(tabSel==='All Services'&&'history fund wallet'.includes(t)){box.append(tile('Fund Wallet','plus',1,'#/deposit',n++),tile('History','clock',0,'#/transactions',n++))}
     if(ME.admin&&(tabSel==='Admin'||tabSel==='All Services'))ADM.filter(a=>a[1].toLowerCase().includes(t)).forEach(a=>box.append(tile(a[1],a[2],0,'#/'+a[0],n++)));
     if(!box.children.length)box.append(h('p',{class:'mut'},'No service matches your search.'))};
@@ -184,7 +187,7 @@ function dashboard(m){
   tabs.forEach(t=>tb.append(h('button',{class:'tab',on:{click:()=>{tabSel=t;paintTabs();draw()}}},t)));
   const s=h('input',{placeholder:'Search service…',value:tileQ});s.addEventListener('input',()=>{tileQ=s.value;draw()});
   tb.append(h('div',{class:'ig'},ic('search',16),s));
-  m.append(hero(),h('div',{class:'cd pad'},tb,box));paintTabs();draw();
+  m.append(hero(),agentBanner(),h('div',{class:'cd pad'},tb,box));paintTabs();draw();
 }
 function more(m){
   m.append(crumb(['Dashboard'],['More Verifications']),titleRow('idcard','More Verifications','Instant API'));
@@ -217,12 +220,15 @@ function pageResult(box,x,pageId){
 }
 function pdfBtn(pdf,name){return h('button',{class:'btn',on:{click:()=>{const bin=atob(pdf),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);const a=h('a',{href:URL.createObjectURL(new Blob([u],{type:'application/pdf'})),download:name});a.click()}}},ic('down',16),'Download slip (PDF)')}
 function pageView(m,p){
+  if(p.keys.every(k=>SV[k].locked)){m.append(crumb(['Dashboard'],[p.crumb,'#/dashboard'],[p.t]),titleRow(p.i,p.t,'Agents only'),h('div',{class:'cd pad',style:'max-width:620px'},emptyBox('lock','This service is for verified agents','Only verified agents can use '+p.t+'. Apply once and we will review your details.'),h('div',{style:'text-align:center'},h('a',{class:'btn',href:'#/agent'},ic('badge',16),'Apply to become a verified agent'))));return}
   let cur=SV[p.keys[0]];const async_=cur.kind==='async';
   m.append(crumb(['Dashboard'],[p.crumb,'#/'+(p.crumb==='More Verifications'?'more':'dashboard')],[p.t]),titleRow(p.i,p.t,async_?'Agency request':'Instant API'));
   const fields=h('div'),feeV=h('b',{},N(cur.price)),msg=h('div',{class:'msg'}),inputs={};
   const build=()=>{fields.replaceChildren();Object.keys(inputs).forEach(k=>delete inputs[k]);
     Object.entries(cur.fields).forEach(([k,l])=>{const ch=cur.choices&&cur.choices[k],opt=(cur.optional||[]).includes(k);const big=ch&&ch.length>40&&ch.every(c=>Array.isArray(c));const dlId='dl_'+cur.key+'_'+k;const i=big?(()=>{const m={};ch.forEach(c=>{m[c[0]]=c[0];m[c[1]+' ('+c[0]+')']=c[0];if(!(c[1] in m))m[c[1]]=c[0]});const x=h('input',{list:dlId,placeholder:'Type the bank name or code…',autocomplete:'off'});x.map=m;document.getElementById(dlId)?.remove();document.body.append(h('datalist',{id:dlId},ch.map(c=>h('option',{value:c[1]+' ('+c[0]+')'}))));return x})():ch?h('select',{},[h('option',{value:''},opt?'Not sure / any':'Choose…'),...ch.map(c=>h('option',{value:Array.isArray(c)?c[0]:c},Array.isArray(c)?c[1]:c))]):h('input',{placeholder:l,autocomplete:'off',inputmode:(/^(nin|bvn|bankAccount|bankCode|bank_code|meter_number|tcc_number|tax_number)$/.test(k)||(k==='number'&&['bank_account','bank_account_match','tin_by_nin','tin_by_phone','tin_by_cac'].includes(cur.key)))?'numeric':null,maxlength:(k==='nin'||k==='bvn')?11:null});inputs[k]=i;
-      fields.append(h('label',{class:'lbl'},l,' ',opt?null:h('i',{},'*')),h('div',{class:'ig'},ic(k==='nin'?'finger':k==='bvn'?'shieldck':'file',17),i))});feeV.textContent=N(cur.price)};
+      fields.append(h('label',{class:'lbl'},l,' ',opt?null:h('i',{},'*')),h('div',{class:'ig'},ic(k==='nin'?'finger':k==='bvn'?'shieldck':'file',17),i))});feeV.textContent=N(cur.price);nudge()};
+  const nudge=()=>{nudgeBox.replaceChildren();if(ME.admin||ME.agent||!(cur.agentPrice<cur.price))return;nudgeBox.append(h('a',{href:'#/agent',style:'display:block;margin:0 0 14px;padding:10px 12px;border-radius:10px;border:1px dashed var(--y);font-size:13px;text-decoration:none;color:inherit'},'Verified agents pay ',h('b',{},N(cur.agentPrice)),' for this. Get verified and save ',h('b',{},N(cur.price-cur.agentPrice)),' on every check.'))};
+  const nudgeBox=h('div');
   const tier=p.keys.length>1?h('select',{on:{change:e=>{cur=SV[e.target.value];build()}}},p.keys.map(k=>h('option',{value:k},SV[k].label.replace(/^.*?- /,'')+' — '+N(SV[k].price)))):null;
   build();
   const res=h('div',{class:'cd'}),resBody=h('div');const emptyR=()=>resBody.replaceChildren(emptyBox('idcard','Results will appear here','Fill in the details on the left and click "'+(async_?'Submit Request':'Verify Now')+'" to begin.'));emptyR();
@@ -235,8 +241,8 @@ function pageView(m,p){
     if(!x.ok){msg.textContent=x.msg||'Something went wrong.';return}
     pageResult(resBody,x,p.id);if(x.submitted)CF.pending=(CF.pending||0)+1};
   const fc=h('div',{class:'cd'},h('div',{class:'ch'},ic('shield',18),p.t,h('span',{class:'pl2'},async_?'Agency Service':'Instant Verification')),
-    h('div',{class:'cb'},h('p',{class:'d'},p.d),tier?[h('label',{class:'lbl'},'Slip type'),h('div',{class:'ig'},ic('tag',17),tier)]:null,fields,
-      h('div',{class:'fee'},ic('tag',18),h('span',{style:'font-weight:600'},ME.admin?'Provider price (no markup):':'Service Fee:'),feeV),
+    h('div',{class:'cb'},h('p',{class:'d'},p.d),tier?[h('label',{class:'lbl'},'Slip type'),h('div',{class:'ig'},ic('tag',17),tier)]:null,nudgeBox,fields,
+      h('div',{class:'fee'},ic('tag',18),h('span',{style:'font-weight:600'},ME.admin?'Provider price (no markup):':ME.agent?'Agent price:':'Service Fee:'),feeV),
       h('div',{class:'sub'},h('span',{},'Prepaid wallet deduction'),h('span',{},'Wallet Balance: ',h('b',{class:'balv'},balTxt()))),msg,go));
   m.append(h('div',{class:'two'},fc,res));
 }
@@ -250,10 +256,10 @@ function wallet(m){
     h('div',{class:'hl'},'TOTAL AVAILABLE FUNDS'),h('div',{class:'big'},h('span',{class:'balv'},balTxt())),
     h('div',{class:'hl'},'FUNDING METHOD'),h('div',{style:'margin-top:6px;font-weight:600'},'Paystack · Card, bank transfer, USSD'),
     h('div',{class:'hl'},'ACCOUNT HOLDER'),h('div',{style:'margin-top:6px'},ME.name||ME.email));
-  const st=(l,v,s)=>h('div',{class:'cd stat'},h('small',{},l),h('b',{},v),h('span',{class:'mut',style:'font-size:12px'},s));
+  const st=(l,v,s,bv)=>h('div',{class:'cd stat'},h('small',{},l),h('b',{class:bv?'balv':null},v),h('span',{class:'mut',style:'font-size:12px'},s));
   const info=h('div',{class:'cd pad',style:'margin-top:16px'},h('h3',{style:'margin-bottom:6px'},'Wallet Status & Limits'),
     [['Status',h('span',{class:'badge'},'Active')],['Minimum deposit',N(100)],['Maximum single deposit',N(500000)],['Pending requests',String(CF.pending||0)]].map(([a,b])=>h('div',{class:'rowk'},h('span',{class:'mut'},a),h('b',{},b))));
-  m.append(h('div',{class:'wg'},h('div',{},card,info),h('div',{},h('div',{class:'s3'},st('MAIN BALANCE',balTxt(),'Available to spend'),st('TOTAL FUNDED',N(CF.funded),'All deposits'),st('TOTAL SPENT',N(CF.spent),'Verifications and services')),
+  m.append(h('div',{class:'wg'},h('div',{},card,info),h('div',{},h('div',{class:'s3'},st('MAIN BALANCE',balTxt(),'Available to spend',true),st('TOTAL FUNDED',N(CF.funded),'All deposits'),st('TOTAL SPENT',N(CF.spent),'Verifications and services')),
     h('div',{class:'cd pad',style:'margin-top:16px'},h('h3',{style:'margin-bottom:10px'},'How funding works'),h('ul',{class:'ck'},['Pay securely with Paystack (card, bank transfer or USSD).','Your wallet is credited automatically once payment is confirmed.','Failed or empty checks are refunded to this wallet.','Verification results are never stored on our servers.'].map(t=>h('li',{},ic('check',15),t)))))));
 }
 function deposit(m){
@@ -360,6 +366,7 @@ async function aOverview(m){
   const st=(l,v,s)=>h('div',{class:'cd stat'},h('small',{},l),h('b',{},v),s?h('span',{class:'mut',style:'font-size:12px'},s):null);
   m.append(h('div',{class:'sg'},st('REGISTERED USERS',r.users),st('WALLET BALANCES HELD',N(r.held),'All users'),st('TOTAL FUNDED',N(r.funded),'Bank transfer + Paystack'),st('CUSTOMER SPENDING',N(r.revenue),'Net of refunds'),st('PENDING REQUESTS',r.pending),st('PAID ACTIONS TODAY',r.today)));
   const warn=[];if(!r.bankReady&&!r.paystack)warn.push('No payment method is set up. Open Bank Transfers and add your bank details so customers can fund wallets.');if(r.transfersPending)warn.push(r.transfersPending+' bank transfer(s) are waiting for your approval. Open Bank Transfers.');if(r.missing)warn.push(r.missing+' services have no provider price yet. Open Set Prices.');
+  if(r.agentsPending)warn.push(r.agentsPending+' agent application(s) are waiting for your decision. Open Agents & Invites.');
   if(r.payPending)warn.push(r.payPending+' payment(s) are waiting for Paystack confirmation. Open Payments and press Re-check.');
   if(r.payReview)warn.push(r.payReview+' payment(s) need review (amount did not match). Check Paystack and refund if needed.');
   if(r.reqReview)warn.push(r.reqReview+' agency request(s) need review: the provider accepted them but gave no request id. Open Agency Requests.');
@@ -397,11 +404,12 @@ function aPrices(m){
   const missing=Object.values(SV).filter(s=>!s.cost).length;
   const sync=h('button',{class:'btn out',on:{click:async()=>{sync.disabled=true;const x=await api('admin/sync-prices');sync.disabled=false;toast(x.msg);const r=await api('me');if(r.ok){CF=r;ME=r.user;buildPages(r.services);render()}}}},ic('swap',15),'Sync provider prices');
   m.append(h('div',{style:'display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:16px'},sync,missing?h('span',{class:'badge r'},missing+' services have no provider price yet'):h('span',{class:'badge'},'All provider prices set')));
-  const c=h('div',{class:'cd pad ov'}),t=h('table',{class:'tbl'},h('tr',{},['Service','Group','Provider price','Customer price','Margin','Active',''].map(x=>h('th',{},x))));
-  Object.values(SV).forEach(s=>{const cost=h('input',{type:'number',min:0,value:s.cost||0,'aria-label':'Provider price'}),price=h('input',{type:'number',min:0,value:s.sell,'aria-label':'Customer price'}),mar=h('b',{}),act=h('button',{class:'sw'+(s.active?' on':''),'aria-label':'Active',on:{click:()=>{s.active=!s.active;act.classList.toggle('on',s.active)}}}),sv=h('button',{class:'btn out sm'},'Save');
-    const calc=()=>{if(!(+cost.value)){mar.textContent='—';mar.style.color='var(--mut)';return}const d=(+price.value||0)-(+cost.value||0);mar.textContent=(d>=0?'':'-')+N(Math.abs(d));mar.style.color=d>=0?'var(--ok)':'var(--er)'};calc();cost.oninput=price.oninput=calc;
-    sv.onclick=async()=>{const x=await api('admin/price',{key:s.key,price:price.value,cost:cost.value,active:s.active});if(x.ok){s.sell=+price.value;s.cost=+cost.value;s.price=s.cost>0?s.cost:s.sell;buildPages(Object.values(SV));toast(s.label+' saved')}else toast(x.msg)};
-    t.append(h('tr',{},h('td',{style:'font-weight:600'},s.label),h('td',{class:'mut'},s.group),h('td',{},cost),h('td',{},price),h('td',{},mar),h('td',{},act),h('td',{},sv)))});
+  const c=h('div',{class:'cd pad ov'}),t=h('table',{class:'tbl'},h('tr',{},['Service','Group','Provider price','Agent price','Individual price','Margin (agent / individual)','Active','Agents only',''].map(x=>h('th',{},x))));
+  Object.values(SV).forEach(s=>{const cost=h('input',{type:'number',min:0,value:s.cost||0,'aria-label':'Provider price'}),price=h('input',{type:'number',min:0,value:s.sell,'aria-label':'Agent price'}),ind=h('input',{type:'number',min:0,value:s.sellInd,'aria-label':'Individual price'}),mar=h('b',{}),act=h('button',{class:'sw'+(s.active?' on':''),'aria-label':'Active',on:{click:()=>{s.active=!s.active;act.classList.toggle('on',s.active)}}}),sv=h('button',{class:'btn out sm'},'Save');
+    const lk=h('button',{class:'sw'+(s.agentOnly?' on':''),'aria-label':'Agents only',on:{click:()=>{s.agentOnly=!s.agentOnly;lk.classList.toggle('on',s.agentOnly)}}});
+    const calc=()=>{if(!(+cost.value)){mar.textContent='—';mar.style.color='var(--mut)';return}const d=(+price.value||0)-(+cost.value||0),d2=(+ind.value||0)-(+cost.value||0);mar.textContent=(d>=0?'':'-')+N(Math.abs(d))+' / '+(d2>=0?'':'-')+N(Math.abs(d2));mar.style.color=d>=0&&(+ind.value||0)>=(+price.value||0)?'var(--ok)':'var(--er)'};calc();cost.oninput=price.oninput=ind.oninput=calc;
+    sv.onclick=async()=>{const x=await api('admin/price',{key:s.key,price:price.value,priceInd:ind.value,cost:cost.value,active:s.active,agentOnly:!!s.agentOnly});if(x.ok){s.sell=+price.value;s.sellInd=Math.max(+ind.value||0,s.sell);s.cost=+cost.value;s.agentPrice=Math.max(s.sell,s.cost);s.price=s.cost>0?s.cost:s.sell;buildPages(Object.values(SV));toast(s.label+' saved')}else toast(x.msg)};
+    t.append(h('tr',{},h('td',{style:'font-weight:600'},s.label),h('td',{class:'mut'},s.group),h('td',{},cost),h('td',{},price),h('td',{},ind),h('td',{},mar),h('td',{},act),h('td',{},lk),h('td',{},sv)))});
   c.append(t);m.append(c);
 }
 function aUsers(m){
@@ -409,11 +417,12 @@ function aUsers(m){
   const s=h('input',{placeholder:'Search by name or email',autocomplete:'off'}),list=h('div',{class:'cd pad ov',style:'margin-top:20px'});
   const load=async()=>{const r=await api('admin/users',{q:s.value});list.replaceChildren();
     if(!r.rows||!r.rows.length){list.append(emptyBox('users','No users found','Try a different search.'));return}
-    const t=h('table',{class:'tbl'},h('tr',{},['Name','Email','Balance','Status',''].map(x=>h('th',{},x))));
+    const t=h('table',{class:'tbl'},h('tr',{},['Name','Email','Phone','Balance','Status','Agent',''].map(x=>h('th',{},x))));
     r.rows.forEach(u=>{const self=u.email===ME.email;
       const st=h('button',{class:'btn out sm',disabled:self?'':null,on:{click:async()=>{const x=await api('admin/user/status',{id:u.id,active:!u.active});toast(x.msg);if(x.ok)load()}}},u.active?'Suspend':'Activate');
+      const ag=h('button',{class:'btn out sm',on:{click:async()=>{const x=await api('admin/user/agent',{id:u.id,status:u.agent_status==='approved'?'none':'approved'});toast(x.msg);if(x.ok)load()}}},u.agent_status==='approved'?'Remove agent':'Make agent');
       const rs=h('button',{class:'btn out sm',on:{click:async()=>{if(!confirm('Set a temporary password for '+u.email+'?'))return;const x=await api('admin/user/reset',{id:u.id});if(x.ok)modal('Temporary password',h('p',{class:'mut'},'Share this with '+u.email+' privately. They can change it under Profile Settings.'),h('div',{class:'ig',style:'margin-top:12px'},ic('lock'),h('input',{readonly:'',value:x.temp})));else toast(x.msg)}}},'Reset password');
-      t.append(h('tr',{},h('td',{},u.name||'—'),h('td',{},u.email),h('td',{style:'font-weight:700'},N(u.bal)),h('td',{},h('span',{class:'badge '+(u.active?'':'r')},u.active?'Active':'Suspended')),h('td',{style:'display:flex;gap:8px'},st,rs)))});
+      t.append(h('tr',{},h('td',{},u.name||'—'),h('td',{},u.email),h('td',{class:'mut'},u.phone||'—'),h('td',{style:'font-weight:700'},N(u.bal)),h('td',{},h('span',{class:'badge '+(u.active?'':'r')},u.active?'Active':'Suspended')),h('td',{},h('span',{class:'badge '+(u.agent_status==='approved'?'':u.agent_status==='pending'?'y':'r')},u.agent_status==='approved'?'verified':u.agent_status==='pending'?'waiting':u.agent_status==='rejected'?'rejected':'not verified')),h('td',{style:'display:flex;gap:8px'},st,rs,ag)))});
     list.append(t)};
   let tm;s.addEventListener('input',()=>{clearTimeout(tm);tm=setTimeout(load,300)});
   m.append(h('div',{class:'ig',style:'max-width:420px'},ic('search',16),s),list);load();
@@ -520,6 +529,60 @@ async function aRequests(m){
     const open=x.status==='pending'||x.status==='review';
     t.append(h('tr',{},h('td',{class:'mut'},fmt(x.at)),h('td',{},x.email||'-'),h('td',{},x.label),h('td',{},N(x.price)),h('td',{},st),h('td',{style:'display:flex;gap:8px'},open?[chk,rf]:'')))});
   c.append(t);
+}
+
+/* ===== agent verification ===== */
+function agentBanner(){
+  const st=ME.agentStatus||'none';if(ME.admin||st==='approved')return null;
+  const txt=st==='pending'?['Your agent application is being reviewed','You can keep using every service meanwhile. Agent prices apply as soon as it is approved.']:st==='rejected'?['Your agent application was not approved','Open it to see the reason and apply again.']:['Become a verified agent and pay lower prices','Everyone can use every service. Verified agents get the lower agent price on all of them. Apply once; it takes about 2 minutes.'];
+  return h('a',{class:'cd pad banner',href:'#/agent',style:'display:flex;gap:14px;align-items:center;margin-bottom:20px;border-color:var(--y)'},ic('badge',26),h('div',{style:'flex:1'},h('b',{},txt[0]),h('div',{class:'mut',style:'font-size:13px'},txt[1])),h('span',{class:'btn sm'},st==='pending'?'View status':'Open'));
+}
+async function agentPage(m){
+  m.append(crumb(['Dashboard'],['Agent Verification']),titleRow('badge','Agent Verification',ME.admin?'Admin':null));
+  const r=await api('agent/status');if(!r.ok)return m.append(h('p',{},r.msg||'Could not load.'));
+  const c=h('div',{class:'cd pad',style:'max-width:640px'});m.append(c);
+  const st=r.status;ME.agentStatus=st;
+  if(st==='approved'&&!ME.agent&&!ME.admin){const r2=await api('me');if(r2.ok){CF=r2;ME=r2.user;buildPages(r2.services)}}
+  if(st==='approved'){c.append(emptyBox('circle','You are a verified agent','You pay the lower agent price on every service.'));return}
+  if(st==='pending'){c.append(emptyBox('clock','Application under review','Submitted '+fmt(r.app&&r.app.at)+'. We will approve it as soon as we have checked your details. You can close this page; agent prices apply automatically once approved.'));return}
+  if(st==='rejected'&&r.app)c.append(h('div',{class:'cd pad',style:'border-color:var(--er);margin-bottom:18px'},h('b',{style:'color:var(--er)'},'Your last application was not approved'),h('p',{class:'mut',style:'margin-top:6px'},r.app.reason||'No reason was given.')));
+  const f=(l,i,ph)=>{const x=h('input',{placeholder:ph||'',autocomplete:'off'});return[x,h('label',{class:'lbl'},l),h('div',{class:'ig'},ic(i,17),x)]};
+  const [bn,bnL,bnW]=f('Business or shop name *','brief','e.g. Chidi Digital Centre'),[ph,phL,phW]=f('Mobile number *','phone','08012345678'),[ad,adL,adW]=f('Business address *','building','Street, town'),[rg,rgL,rgW]=f('Agent licence or CAC number (optional)','file','');
+  ph.value=r.phone||'';
+  const sel=h('select',{},h('option',{value:''},'Choose your state'),r.states.map(x=>h('option',{value:x},x))),file=h('input',{type:'file',accept:'image/jpeg,image/png,image/webp,application/pdf'}),msg=h('div',{class:'msg',role:'alert'}),go=h('button',{class:'btn w'},'Submit application');
+  let data=null,name='';file.onchange=()=>{msg.textContent='';data=null;const x=file.files[0];if(!x)return;if(x.size>2.5*1024*1024){msg.textContent='That file is larger than 2.5 MB. Choose a smaller photo or PDF.';file.value='';return}name=x.name;const fr=new FileReader();fr.onload=()=>{data=fr.result};fr.readAsDataURL(x)};
+  go.onclick=async()=>{go.disabled=true;msg.textContent='';const x=await api('agent/apply',{business:bn.value,phone:ph.value,address:ad.value,state:sel.value,regno:rg.value,dataUrl:data,name});go.disabled=false;if(x.ok){toast('Application submitted');render()}else msg.textContent=x.msg};
+  c.append(h('p',{class:'mut',style:'margin-bottom:6px'},'Tell us about your business and upload a valid ID. We review every application by hand. Your documents are seen only by our administrator.'),bnL,bnW,phL,phW,adL,adW,h('label',{class:'lbl'},'State *'),h('div',{class:'ig'},ic('globe',17),sel),rgL,rgW,
+    h('label',{class:'lbl'},'ID document *'),h('p',{class:'mut',style:'font-size:12.5px;margin:-4px 0 8px'},'NIN slip, voter’s card, driver’s licence, international passport or agent licence. Photo (JPG, PNG, WebP) or PDF, up to 2.5 MB. Make sure it is clear and readable.'),h('div',{class:'ig'},ic('idcard',17),file),msg,go);
+}
+async function aAgents(m){
+  m.append(crumb(['Dashboard'],['Admin'],['Agents & Invites']),titleRow('badge','Agents & Invites','Admin'));
+  const r=await api('admin/agents');if(!r.ok)return m.append(h('p',{},r.msg));
+  const modeCard=h('div',{class:'cd pad',style:'margin-bottom:20px'},h('h3',{style:'margin:0 0 6px'},'Who can register'),h('p',{class:'mut',style:'margin-bottom:12px;max-width:720px'},'Open: anyone can create an account and use every service at the individual price; they get the lower agent price once you verify them as agents. Invite only: a person needs a one-time code from you to register. Closed: nobody new can register.'));
+  const opts=[['open','Open'],['invite','Invite only'],['closed','Closed']],row=h('div',{style:'display:flex;gap:10px;flex-wrap:wrap'});
+  const paint=()=>row.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.m===r.mode));
+  opts.forEach(([v,l])=>{const b=h('button',{class:'tab','data-m':v,on:{click:async()=>{const x=await api('admin/regmode',{mode:v});toast(x.msg);if(x.ok){r.mode=v;paint()}}}},l);row.append(b)});paint();modeCard.append(row);m.append(modeCard);
+  const q=h('div',{class:'cd pad ov',style:'margin-bottom:20px'},h('h3',{style:'margin:0 0 10px'},'Agent applications'));
+  if(!r.rows.length)q.append(h('p',{class:'mut'},'No applications yet.'));
+  else{const t=h('table',{class:'tbl'},h('tr',{},['Date','Applicant','Business','State','Document','Status',''].map(x=>h('th',{},x))));
+    r.rows.forEach(a=>{const view=a.has_doc?h('a',{class:'btn out sm',href:'/api/admin/agent/'+a.id+'/doc',target:'_blank',rel:'noopener'},'View ID'):h('span',{class:'mut'},'deleted');
+      const act=h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'});
+      if(a.status==='pending'){const ok=h('button',{class:'btn sm'},'Approve'),no=h('button',{class:'btn out sm'},'Reject');
+        ok.onclick=async()=>{if(a.dup&&!confirm('This same ID image was used in another application. Approve anyway?'))return;const x=await api('admin/agent/decide',{id:a.id,approve:true});toast(x.msg);if(x.ok)render()};
+        no.onclick=()=>{const why=h('input',{placeholder:'Reason shown to the applicant'}),msg=h('div',{class:'msg'}),go=h('button',{class:'btn'},'Reject application');const md=modal('Reject application',h('div',{class:'ig'},ic('file'),why),msg);go.onclick=async()=>{const x=await api('admin/agent/decide',{id:a.id,approve:false,reason:why.value});if(x.ok){md.remove();toast(x.msg);render()}else msg.textContent=x.msg};md.querySelector('.mbox').insertBefore(go,md.querySelector('.mbox').lastChild)};
+        act.append(ok,no)}
+      t.append(h('tr',{},h('td',{class:'mut'},fmt(a.at)),h('td',{},h('div',{},a.name||'—'),h('div',{class:'mut',style:'font-size:12px'},a.email+' · '+a.phone)),h('td',{},h('div',{},a.business),h('div',{class:'mut',style:'font-size:12px'},a.address+(a.regno?' · '+a.regno:''))),h('td',{},a.state),h('td',{},view,a.dup?h('div',{class:'badge r',style:'margin-top:6px'},'repeat image'):null),h('td',{},h('span',{class:'badge '+(a.status==='approved'?'':a.status==='pending'?'y':'r')},a.status),a.reason?h('div',{class:'mut',style:'font-size:12px;margin-top:4px'},a.reason):null),h('td',{},act)))});
+    q.append(t)}
+  m.append(q);
+  const inv=h('div',{class:'cd pad ov'},h('h3',{style:'margin:0 0 6px'},'Invite codes'),h('p',{class:'mut',style:'margin-bottom:12px'},'A code works once and expires. Send it to the person privately. Only needed when registration is "Invite only".'));
+  const note=h('input',{placeholder:'Who is it for? (optional)'}),days=h('input',{type:'number',min:1,max:90,value:7,style:'max-width:90px'}),mk=h('button',{class:'btn'},'Create code');
+  mk.onclick=async()=>{const x=await api('admin/invite/create',{note:note.value,days:days.value});if(x.ok){modal('New invite code',h('p',{class:'mut'},'Copy it and send it to the person. It works once.'),h('div',{class:'ig',style:'margin-top:12px'},ic('badge'),h('input',{readonly:'',value:x.code}),h('button',{'aria-label':'Copy',on:{click:()=>copyTxt(x.code)}},ic('copy',16))));render()}else toast(x.msg)};
+  inv.append(h('div',{style:'display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px'},h('div',{class:'ig',style:'flex:1;min-width:200px'},ic('file'),note),h('label',{class:'mut'},'Valid for (days)'),days,mk));
+  const ir=await api('admin/invites');
+  if(ir.ok&&ir.rows.length){const t=h('table',{class:'tbl'},h('tr',{},['Code','For','Expires','Status',''].map(x=>h('th',{},x))));
+    ir.rows.forEach(c=>{const used=!!c.used_at,exp=c.expires_at&&new Date(c.expires_at)<new Date();const del=h('button',{class:'btn out sm'},'Delete');del.onclick=async()=>{await api('admin/invite/delete',{code:c.code});render()};
+      t.append(h('tr',{},h('td',{style:'font-family:monospace'},c.code),h('td',{class:'mut'},c.note||'—'),h('td',{class:'mut'},fmt(c.expires_at)),h('td',{},h('span',{class:'badge '+(used?'':exp?'r':'y')},used?'used by '+(c.used_email||'?'):exp?'expired':'unused')),h('td',{},used?'':del)))});inv.append(t)}
+  m.append(inv);
 }
 
 /* ===== boot ===== */

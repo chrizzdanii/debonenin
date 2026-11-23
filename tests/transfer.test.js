@@ -19,9 +19,9 @@ test.before(async () => {
   db = await H.newDb();
   proc = spawn(process.execPath, ['server.js'], { cwd: path.join(__dirname, '..'), env: { ...process.env, PORT, DATABASE_URL: db.url, ADMIN_EMAIL: 'boss@test.com', VP_API_KEY: 'test', VP_BASE: 'http://127.0.0.1:9/', PAYSTACK_SECRET: 'sk_test_x', BASE_URL: URL } });
   for (let i = 0; i < 30; i++) { try { if ((await fetch(URL + '/health')).ok) break; } catch {} await new Promise(r => setTimeout(r, 200)); }
-  await call('admin', 'register', { name: 'Boss', email: 'boss@test.com', pass: 'secret123', agree: true });
-  await call('ann', 'register', { name: 'Ann', email: 'ann@test.com', pass: 'secret123', agree: true });
-  await call('bob', 'register', { name: 'Bob', email: 'bob@test.com', pass: 'secret123', agree: true });
+  await call('admin', 'register', { name: 'Boss', email: 'boss@test.com', pass: 'secret123', agree: true, phone: H.phone() });
+  await call('ann', 'register', { name: 'Ann', email: 'ann@test.com', pass: 'secret123', agree: true, phone: H.phone() });
+  await call('bob', 'register', { name: 'Bob', email: 'bob@test.com', pass: 'secret123', agree: true, phone: H.phone() });
 });
 test.after(async () => { proc.kill(); await db.drop(); });
 

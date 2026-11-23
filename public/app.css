@@ -143,3 +143,8 @@ input[type=checkbox]{accent-color:var(--y);width:16px;height:16px;margin-top:2px
 .rcpt{max-width:100%;max-height:320px;border-radius:10px;border:1px solid var(--line);margin-bottom:12px;display:block}
 .mbox textarea{width:100%;background:var(--inp);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:8px;color:var(--txt);resize:vertical}
 @media(max-width:860px){.g21{grid-template-columns:1fr}.mts{grid-template-columns:1fr}.bkrow{grid-template-columns:1fr}}
+
+.hot.lk{background:#64748b;right:-18px;font-size:8px}
+.banner:hover{box-shadow:0 6px 24px rgba(91,33,182,.15)}
+input[type=file]{padding:10px 12px;font-size:13px}
+select{width:100%;background:transparent;border:0;padding:12px 10px;outline:0;color:inherit;font:inherit}
