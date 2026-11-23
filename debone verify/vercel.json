@@ -1,5 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
   "outputDirectory": "public",
   "functions": {
     "api/index.js": {
@@ -64,14 +65,4 @@
   "regions": [
     "lhr1"
   ]
-}
-
-{
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": null,
-  "outputDirectory": "public",
-  "functions": {
-    "api/index.js": { "maxDuration": 60 }
-  },
-  ...rest stays the same
 }
