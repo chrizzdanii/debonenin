@@ -10,7 +10,7 @@
 do $$
 begin
   if not exists (select 1 from pg_roles where rolname = 'dv_app') then
-    create role dv_app login password 'eut756lidtpcb69s3j2pd8t1' nosuperuser nocreatedb nocreaterole noinherit nobypassrls;
+    create role dv_app login password 'edfc8d4ad5703568216940c32df0afd3' nosuperuser nocreatedb nocreaterole noinherit nobypassrls;
   end if;
 end $$;
 
