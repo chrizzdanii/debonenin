@@ -68,6 +68,26 @@ start: { title: 'Start here', sections: [
     'Closed the page by mistake? Open **My Results**. Your result is kept there for 30 days and opening it again is free.']],
   ['good', 'Want to be shown around the real screens? Press **Take a Tour** at the top of the Guide page. It walks you through the site one step at a time.'],
 ]},
+{ id: 's-assistant', title: 'The assistant: ask any question', blocks: [
+  ['p', 'The assistant is a helper that has read this whole guide. Tap **Ask** (bottom right of every page, even before you sign in) and type your question in your own words. Simple English, Nigerian Pidgin and small spelling mistakes are all fine.'],
+  ['steps', [
+    'Tap **Ask** at the bottom of the screen. A chat window opens.',
+    'Type your question, for example “I closed the page. Do I pay again?” or “How much is a NIN slip?”, and press Send.',
+    'Read the answer. Tap a suggested question to go deeper, tap **Read in the guide** to open the full chapter, or tap **Listen** to hear the answer read aloud.']],
+  ['h', 'What the assistant can do'],
+  ['list', [
+    'Explain any part of the site: signing up, funding, running a check, slips, My Results, My Requests, agents, safety and problems.',
+    'Tell you **live prices**. Ask “How much is a NIN slip?” and it shows what you pay and what a verified agent pays.',
+    'Tell you your **wallet balance** and your **agent status** when you are signed in.',
+    'Read answers aloud: switch on the speaker button at the top of the chat window.',
+    'For the admin, it also answers from the admin chapters. Customers never see those.']],
+  ['h', 'What it cannot do'],
+  ['list', [
+    'It is an automated helper, not a person. It cannot move money, change your account or look at your payments. For those, use **Direct WhatsApp**.',
+    'It only knows this website. If it says it is not sure, ask in other words, open the guide, or tap **Chat with support**.',
+    'Never type your password, PIN or card details into it.']],
+  ['good', 'Your chat stays in your own browser. Nothing you type is sent to our servers or saved there. Tap the bin icon to clear it. The search box on the Guide page also forgives spelling mistakes and highlights the words it found.'],
+]},
 ]},
 
 why: { title: 'Why DEBONE is better', sections: [

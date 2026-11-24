@@ -16,7 +16,7 @@ Wallet funding by Paystack and by bank transfer with receipt approval. Admin too
 | `scripts/migrate.js` | Runs the SQL files from your computer (optional). |
 | `scripts/import-sqlite.js` | One-time copy of an old `data.db` into Supabase. |
 | `vercel.json` | Vercel settings: routing, security headers, region, daily job. |
-| `tests/` | 85 automated tests (need a Postgres, see below). |
+| `tests/` | 91 automated tests (need a Postgres, see below). |
 
 ## Run on your own computer
 1. Node 22, then `npm install`.
@@ -33,7 +33,7 @@ Without `TEST_DATABASE_URL` the database tests are skipped. The tests run the we
 
 ## Agent and individual pricing, registration controls (version 5)
 - Registration needs a mobile number (unique). Modes: open / invite only / closed, set by the admin. A hidden field traps simple bots.
-- Every service is open to everyone. Verified agents pay the **agent price**; unverified individuals pay a higher **individual price**. Both are set per service in Admin -> Set Prices (individual price 0 = automatic and tiered: agent price up to N300 -> x2, N301-N600 -> x1.7, N601-N1,500 -> x1.5, above N1,500 -> x1.4; rounded up to the next N50). Charging is decided in `server.js`, never in the browser.
+- Every service is open to everyone. Verified agents pay the **agent price**; unverified individuals pay a higher **individual price**. Both are set per service in Admin -> Set Prices (individual price 0 = automatic and tiered: agent price up to N300 -> x1.8, N301-N1,500 -> x1.5, above N1,500 -> x1.4; rounded up to the next N50). Charging is decided in `server.js`, never in the browser.
 - An optional "Agents only" switch per service can still lock a single service completely.
 - Users apply under *Agent Verification* (business details + ID document, stored in the database, visible only to the admin). The admin approves or rejects under *Agents & Invites*.
 
@@ -51,3 +51,10 @@ Without `TEST_DATABASE_URL` the database tests are skipped. The tests run the we
 - My Results: `POST /api/results/list|get|delete`. A customer sees only their own results with outcome `success` or `completed`, from the last 30 days. Opening or downloading never calls the provider and never touches the wallet. Results marked `needs review` stay admin-only.
 - No database change is needed for version 6.
 
+
+
+## v7: assistant (chatbot), smarter guide search, market-checked prices
+- **Assistant:** a chat window on every page (even before sign-in). Files: `public/chat-engine.js` (search brain), `public/chat.js` (window + live prices/balance/status), `public/guide-qa.js` (ready answers; admin answers live in `guide-admin.js`). It reads the whole guide too, so anything written in the guide is answerable. Nothing is sent to a server; no AI service or API key is needed. To teach it something new: add a line to `GUIDE_QA`, or add text to the guide.
+- **Guide search:** ranked, forgives spelling mistakes, highlights matches, and has an "Ask the assistant" button.
+- **Prices:** automatic individual tiers are now x1.8 (agent price up to N300), x1.5 (N301 to N1,500), x1.4 (above). Migration `ind_price_v3` moves only untouched automatic prices; prices an admin typed are never changed.
+- Tests: `tests/chat.test.js` checks 97 real questions, every ready answer, every chapter title and every quick-fix row.

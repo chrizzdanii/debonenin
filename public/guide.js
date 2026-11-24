@@ -12,7 +12,7 @@ function guideInit() { if (guideInit.done) return; guideInit.done = 1; Object.as
   stop: '<rect x="6" y="6" width="12" height="12" rx="1"/>',
   speaker: '<path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/>',
   route: '<circle cx="6" cy="18" r="2"/><circle cx="18" cy="6" r="2"/><path d="M8 18h6a3 3 0 0 0 0-6h-4a3 3 0 0 1 0-6h6"/>'
-}); }
+}); if (typeof chatInit === 'function') chatInit(); }
 const lsGet = k => { try { return localStorage.getItem(k) } catch { return null } };
 const lsSet = (k, v) => { try { localStorage.setItem(k, v) } catch {} };
 
@@ -224,9 +224,13 @@ function renderBlock(b, push) {
   return h('span');
 }
 function buildGuideBody(tab, q) {
-  const body = h('div', { class: 'gbody' }), units = [], toc = []; const ql = q.trim().toLowerCase();
-  for (const part of partsFor(tab)) {
-    const secs = part.sections.filter(s => !ql || (s.title + ' ' + secBlocks(s).map(b => b[0] === 'table' ? b[1].join(' ') + ' ' + b[2].flat().join(' ') : Array.isArray(b[1]) ? b[1].join(' ') : b[1]).join(' ')).toLowerCase().includes(ql));
+  const body = h('div', { class: 'gbody' }), units = [], toc = []; const ql = q.trim();
+  let order = null, plist = partsFor(tab);
+  if (ql) { const allowed = new Set(plist.flatMap(p => p.sections.map(s => s.id))); order = new Map(DVChat.searchSections(chatIndex(), ql, allowed).map((x, n) => [x.id, n]));
+    const best = p => Math.min(99, ...p.sections.filter(s => order.has(s.id)).map(s => order.get(s.id))); plist = plist.filter(p => p.sections.some(s => order.has(s.id))).sort((a, b) => best(a) - best(b));
+    const nOk = order.size; body.append(h('div', { class: 'gsr' }, h('b', {}, nOk ? nOk + (nOk === 1 ? ' chapter matches “' : ' chapters match “') + ql + '”, best first' : 'Nothing in the guide matches “' + ql + '”'), h('button', { class: 'btn sm', on: { click: () => chatOpen(ql) } }, ic('spark', 14), 'Ask the assistant instead'))) }
+  for (const part of plist) {
+    const secs = ql ? part.sections.filter(s => order.has(s.id)).sort((a, b) => order.get(a.id) - order.get(b.id)) : part.sections;
     if (!secs.length) continue;
     body.append(h('div', { class: 'gpart' }, h('span', {}, 'PART'), h('b', {}, part.title))); toc.push({ part: true, t: part.title });
     for (const s of secs) {
@@ -237,8 +241,17 @@ function buildGuideBody(tab, q) {
       secBlocks(s).forEach(b => card.append(renderBlock(b, push))); body.append(card); toc.push({ t: s.title, id });
     }
   }
+  if (ql && toc.length) hilite(body, DVChat.hiWords(chatIndex(), ql));
   if (!toc.length) body.append(emptyBox('search', 'Nothing found', 'No chapter matches “' + q + '”. Try a shorter word such as “wallet”, “slip” or “agent”.'));
   return { body, units, toc };
+}
+function hilite(root, words) {
+  if (!words.length) return; const src = '\\b(' + words.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')\\w*';
+  const test = new RegExp(src, 'i'), nodes = [], wk = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  for (let n = wk.nextNode(); n; n = wk.nextNode()) { const p = n.parentElement; if (p && !/^(SCRIPT|STYLE|BUTTON|MARK|H1)$/.test(p.tagName) && !p.closest('.gsr') && test.test(n.nodeValue)) nodes.push(n) }
+  for (const n of nodes) { const f = document.createDocumentFragment(); let last = 0; const re = new RegExp(src, 'gi'), t = n.nodeValue; let m;
+    while ((m = re.exec(t))) { if (m.index > last) f.append(t.slice(last, m.index)); f.append(h('mark', { class: 'gm' }, m[0])); last = m.index + m[0].length; if (!m[0].length) re.lastIndex++ }
+    if (last < t.length) f.append(t.slice(last)); n.replaceWith(f) }
 }
 async function guidePage(m) {
   if (ME.admin) await loadAdminPart();
@@ -273,6 +286,7 @@ async function guidePage(m) {
   tabsEl.append(h('div', { class: 'ig' }, ic('search', 16), q));
   pdfBtn2.onclick = () => { pdfBtn2.disabled = true; try { const label = (tabs.find(t => t[0] === G.tab) || [])[1] || 'Guide'; const u = buildPdf(label, partsFor(G.tab)); saveBlob(u, 'DEBONE-User-Guide-' + G.tab + '.pdf', 'application/pdf'); toast('Guide downloaded as PDF.') } catch (e) { console.error(e); toast('Could not make the PDF. Please try again.') } pdfBtn2.disabled = false };
   m.append(bar, h('div', { class: 'cd pad', style: 'margin-bottom:16px;padding-bottom:8px' }, tabsEl), wrap); draw();
+  if (G.jump) { const id = 'g-' + G.jump; G.jump = null; setTimeout(() => { const el = document.getElementById(id); if (el) { el.scrollIntoView({ block: 'start' }); el.classList.add('gflash') } }, 80) }
 }
 
 /* ---------- My Results ---------- */

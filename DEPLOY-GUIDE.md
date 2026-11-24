@@ -1,3 +1,6 @@
+# v7 update (assistant, search, prices)
+No SQL is needed. Upload the contents of the folder to GitHub as before and let Vercel redeploy. Then: (1) open the site and tap **Ask** at the bottom right; (2) open Guide & Tour and try the search box; (3) open Admin > Set Prices and look at the individual prices (untouched automatic ones moved to the new tiers; any price you typed yourself stayed).
+
 # Put DEBONE Digital Hub live on Vercel + Supabase
 
 Follow the steps in order. Do not skip the "Check" lines: they tell you each step worked.
@@ -15,7 +18,7 @@ Time needed: about 1 to 1.5 hours the first time.
 - **Guide & Tour** page: a full guide for customers, agents and the admin. People can read it, search it, press **Listen** (the site reads it aloud until they press Stop) or **Download PDF**. The admin has an extra "For admin" tab that customers never receive.
 - **Take a Tour**: a step-by-step tour of the real screens (customer tour and admin tour). New users are offered it once when they first sign in. There is also a "?" button in the top bar.
 - **My Results**: every successful result is kept for 30 days and the customer can view or download it again for free. Closing the page by mistake no longer means paying again. (Before this, only you could see saved results.)
-- **Individual prices are now higher.** The first version added 50%. Now cheap services get a bigger gap so agents really are better off: agent price up to N300 -> double, N301-N600 -> x1.7, N601-N1,500 -> x1.5, above N1,500 -> x1.4 (rounded up to the next N50).
+- **Individual prices are now higher.** The first version added 50%. Now cheap services get a bigger gap so agents really are better off: agent price up to N300 -> x1.8, N301-N1,500 -> x1.5, above N1,500 -> x1.4 (rounded up to the next N50).
 - IPE clearance default agent price is now N1,500.
 - Phone fixes: the top bar no longer runs off the screen and your account menu works on a phone.
 

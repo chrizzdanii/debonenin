@@ -21,6 +21,7 @@ function tourSteps(kind) {
     { go: '#/a/users', sel: 'main .ig, main .cd', title: 'Users', text: 'Search any customer. Suspend or activate, reset a password (a temporary one is shown once), or make or remove an agent.' },
     { go: '#/a/settings', sel: 'main .cd.pad', title: 'Support Settings', text: 'Set the WhatsApp number for support, copy the Paystack webhook link, and set up two-step login for your admin account. Two-step login is strongly recommended.' },
     { go: '#/guide', sel: '.gbar', title: 'The Guide has an admin chapter', text: 'Open the “For admin” tab for the full admin manual. You can read it, listen to it or download it as a PDF.' },
+    { sel: '.chatfab', title: 'The assistant knows the admin guide too', text: 'Tap Ask and type a question such as “How do I approve a bank transfer?”. As the admin, the assistant also answers from the admin chapters. Customers never see those answers.' },
     { title: 'You are ready', text: 'That is the whole admin side. You can run the customer tour any time from the Guide page to see what your customers see.', end: true, alt: ['Take the customer tour', 'customer'] }
   ];
   const s = [
@@ -54,6 +55,7 @@ function tourSteps(kind) {
     { go: '#/profile', sel: 'main .cd.pad', title: 'Profile Settings', text: 'Change your name or your password here. Changing your password signs out your other devices for safety.' },
     ...(wa ? [{ sel: '.sb a[href^="https://wa.me"]', side: true, title: 'Direct WhatsApp', text: 'Need help? This opens a chat with support. Never send your password to anyone.' }] : []),
     { go: '#/guide', sel: '.gbar', title: 'The Guide: read, listen or download', text: 'The full guide explains every page. Press Listen and the site reads it to you until you press Stop. Press Download PDF to keep a copy. Use the search box to find any topic.' },
+    { sel: '.chatfab', title: 'The assistant: ask anything', text: 'Tap Ask at the bottom of the screen. The assistant has read the whole guide, so it answers any question in plain words: how to fund, why a check failed, what a word means. Ask it “How much is a NIN slip?” and it shows your real price. It also reads answers aloud if you want.' },
     { title: 'You are ready', text: 'That is the whole site. Fund your wallet, run a check, and remember: pay once, download as many times as you like, and find any result again in My Results for 30 days.', end: true }
   ];
   return s;

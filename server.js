@@ -96,9 +96,10 @@ const normPhone = p => { p = String(p || '').replace(/[\s\-()]/g, ''); if (/^\+2
 const px = k => q('SELECT price,price_ind,cost,active,agent_only FROM prices WHERE k=?', k);
 /* TWO PRICE LEVELS. "price" = the verified-agent price. "price_ind" = what an unverified individual pays.
    price_ind = 0 means "work it out automatically". Cheap services get the biggest gap, because that is where agents earn most:
-     agent price up to N300 -> x2, N301-N600 -> x1.7, N601-N1,500 -> x1.5, above N1,500 -> x1.4. Rounded up to the next N50 (and always at least N100 more). */
-const indRule = a => a <= 300 ? [2, 1] : a <= 600 ? [17, 10] : a <= 1500 ? [3, 2] : [7, 5]; // multiplier as a fraction, so there are no rounding surprises
+     agent price up to N300 -> x1.8, N301-N1,500 -> x1.5, above N1,500 -> x1.4. Rounded up to the next N50 (and always at least N100 more). */
+const indRule = a => a <= 300 ? [9, 5] : a <= 1500 ? [3, 2] : [7, 5]; // multiplier as a fraction, so there are no rounding surprises
 const indAuto = a => { const [n, d] = indRule(a); return Math.max(Math.ceil(a * n / (d * 50)) * 50, a + 100); };
+const indAutoV2 = a => { const [n, d] = a <= 300 ? [2, 1] : a <= 600 ? [17, 10] : a <= 1500 ? [3, 2] : [7, 5]; return Math.max(Math.ceil(a * n / (d * 50)) * 50, a + 100); }; // the second version, only used to upgrade untouched prices
 const indAutoV1 = a => Math.max(Math.ceil(a * 1.5 / 50) * 50, a + 100); // the first version (+50%), only used to upgrade untouched prices
 const indOf = p => Math.max(p.price_ind > 0 ? p.price_ind : indAuto(p.price), p.price, p.cost); // never below the agent price or the provider price
 const agentOf = p => Math.max(p.price, p.cost);
@@ -139,6 +140,9 @@ async function init() {
   if ((await getSet('ind_price_v2')) == null) { // one-time: move individual prices that were still on the first automatic formula (+50%) to the new tiered one. Prices you typed yourself are left alone.
     for (const r of await all('SELECT k,price,price_ind FROM prices')) { const nw = indAuto(r.price); if ((r.price_ind === 0 || r.price_ind === indAutoV1(r.price)) && r.price_ind !== nw) await run('UPDATE prices SET price_ind=? WHERE k=?', nw, r.k); }
     await setSet('ind_price_v2', '1'); }
+  if ((await getSet('ind_price_v3')) == null) { // one-time: move untouched individual prices (still on an earlier automatic formula) to the market-checked tiers. Prices you typed yourself are left alone.
+    for (const r of await all('SELECT k,price,price_ind FROM prices')) { const nw = indAuto(r.price); if ((r.price_ind === 0 || r.price_ind === indAutoV1(r.price) || r.price_ind === indAutoV2(r.price)) && r.price_ind !== nw) await run('UPDATE prices SET price_ind=? WHERE k=?', nw, r.k); }
+    await setSet('ind_price_v3', '1'); }
   if ((await getSet('open_to_all_v1')) == null) { await run('UPDATE prices SET agent_only=0'); await setSet('open_to_all_v1', '1'); await setSet('agent_lock_v1', '1'); } // one-time: every service is open to everyone; unverified people simply pay the individual price
   try { const c = JSON.parse((await getSet('provider_list')) || '{}'); if (c.lists) LISTS = c.lists; listAt = c.at || 0; } catch { listAt = 0; }
 }
