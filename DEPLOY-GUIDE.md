@@ -7,6 +7,33 @@ Time needed: about 1 to 1.5 hours the first time.
 
 ---
 
+# UPDATING A SITE THAT IS ALREADY LIVE (version 6: Guide Centre, Take a Tour, My Results, new individual prices)
+
+**No database change is needed this time.** Do NOT run any SQL. Only upload the code.
+
+**What is new**
+- **Guide & Tour** page: a full guide for customers, agents and the admin. People can read it, search it, press **Listen** (the site reads it aloud until they press Stop) or **Download PDF**. The admin has an extra "For admin" tab that customers never receive.
+- **Take a Tour**: a step-by-step tour of the real screens (customer tour and admin tour). New users are offered it once when they first sign in. There is also a "?" button in the top bar.
+- **My Results**: every successful result is kept for 30 days and the customer can view or download it again for free. Closing the page by mistake no longer means paying again. (Before this, only you could see saved results.)
+- **Individual prices are now higher.** The first version added 50%. Now cheap services get a bigger gap so agents really are better off: agent price up to N300 -> double, N301-N600 -> x1.7, N601-N1,500 -> x1.5, above N1,500 -> x1.4 (rounded up to the next N50).
+- IPE clearance default agent price is now N1,500.
+- Phone fixes: the top bar no longer runs off the screen and your account menu works on a phone.
+
+**Your agent prices do not change.** Individual prices you typed yourself are not touched. Only individual prices that were still on the old automatic +50% are moved to the new tiers, once, the first time the site starts.
+
+**Steps**
+1. Unzip the file. Open your repository on GitHub -> **Add file -> Upload files**. Drag in everything that is INSIDE the folder (not the folder itself). Replace files with the same names. Commit.
+2. Wait for Vercel to say **Ready**, then open `https://your-site/health`. It must show `{"ok":true}`.
+3. Sign in as admin -> **Admin -> Set Prices**. Look at the **Individual price** column and change any you want. Press **Save** on each row you change.
+4. Open **Guide & Tour** and press **Download PDF** to check it. Press **Listen** to hear it.
+5. Sign in as a normal customer (or open a private window) and press **Take a Tour** once to see what your customers see.
+
+**Reading aloud uses the visitor's own browser voices.** It works best in Google Chrome. A phone reads in whatever voice is installed on it.
+
+**Editing the guide later.** Ask your developer to edit `public/guide-content.js` (customers and agents) or `guide-admin.js` (admin only). Prices in the guide are live and update by themselves.
+
+---
+
 # UPDATING A SITE THAT IS ALREADY LIVE (version 5: agent price and individual price)
 
 **What changed.** Every service is now open to everyone. There are two prices:

@@ -47,7 +47,7 @@ add('phone_regular', 'NIN', 'NIN by phone - Regular', 200, 'nin_by_phone_regular
 add('nin_demo', 'NIN', 'NIN by demographics', 300, 'nin_by_demo.php', { firstname: 'First name', lastname: 'Last name', dob: 'Date of birth (DD-MM-YYYY)', gender: 'Gender (optional)' }, { optional: ['gender'], dobDmy: true, choices: { gender: ['MALE', 'FEMALE'] } });
 add('bvn_premium', 'BVN', 'BVN slip - Premium', 250, 'bvn_premium_slip.php', bvn);
 add('bvn_standard', 'BVN', 'BVN slip - Standard', 200, 'bvn_full_details_slip.php', bvn);
-add('ipe', 'NIN agency', 'IPE clearance', 800, 'ipe.php', { trackingID: 'Tracking ID' }, { kind: 'async', status: 'ipe_status.php', trackRef: true });
+add('ipe', 'NIN agency', 'IPE clearance', 1500, 'ipe.php', { trackingID: 'Tracking ID' }, { kind: 'async', status: 'ipe_status.php', trackRef: true });
 add('validation', 'NIN agency', 'NIN validation', 800, 'validation.php', { nin: 'NIN (11 digits)', error_type: 'Error type' }, { kind: 'async', status: 'validation_status.php', choices: { error_type: [['no_record', 'No Record Found'], ['sim', 'SIM Validation'], ['v.nin_validation', 'V.NIN Validation'], ['update_records', 'Update Records Validation'], ['bank_validation', 'Bank Validation'], ['modification', 'Modification Validation'], ['photo_error', 'Photographic Error']] } });
 add('personalization', 'NIN agency', 'NIN personalisation', 300, 'personalization.php', { tracking_id: 'Enrolment tracking ID' }, { kind: 'async', status: 'personalization_status.php', trackRef: true });
 const L = 'lookup.php', cac = { rc_number: 'RC / BN number (digits)', company_type: 'Registration type' };
@@ -95,8 +95,11 @@ const COST = {nin_premium: 100, nin_standard: 100, nin_regular: 100, nin_vnin: 1
 const normPhone = p => { p = String(p || '').replace(/[\s\-()]/g, ''); if (/^\+234\d{10}$/.test(p)) p = '0' + p.slice(4); else if (/^234\d{10}$/.test(p)) p = '0' + p.slice(3); return /^0[789]\d{9}$/.test(p) ? p : null; };
 const px = k => q('SELECT price,price_ind,cost,active,agent_only FROM prices WHERE k=?', k);
 /* TWO PRICE LEVELS. "price" = the verified-agent price. "price_ind" = what an unverified individual pays.
-   price_ind = 0 means "work it out automatically": agent price + 50%, rounded up to the next N50, and at least N100 more. */
-const indAuto = a => Math.max(Math.ceil(a * 1.5 / 50) * 50, a + 100);
+   price_ind = 0 means "work it out automatically". Cheap services get the biggest gap, because that is where agents earn most:
+     agent price up to N300 -> x2, N301-N600 -> x1.7, N601-N1,500 -> x1.5, above N1,500 -> x1.4. Rounded up to the next N50 (and always at least N100 more). */
+const indRule = a => a <= 300 ? [2, 1] : a <= 600 ? [17, 10] : a <= 1500 ? [3, 2] : [7, 5]; // multiplier as a fraction, so there are no rounding surprises
+const indAuto = a => { const [n, d] = indRule(a); return Math.max(Math.ceil(a * n / (d * 50)) * 50, a + 100); };
+const indAutoV1 = a => Math.max(Math.ceil(a * 1.5 / 50) * 50, a + 100); // the first version (+50%), only used to upgrade untouched prices
 const indOf = p => Math.max(p.price_ind > 0 ? p.price_ind : indAuto(p.price), p.price, p.cost); // never below the agent price or the provider price
 const agentOf = p => Math.max(p.price, p.cost);
 const priceView = (p, u) => u.admin && p.cost > 0 ? p.cost : u.agent ? agentOf(p) : indOf(p);
@@ -133,6 +136,9 @@ async function init() {
   try { await q('SELECT agent_status, phone FROM users LIMIT 1'); await q('SELECT agent_only, price_ind FROM prices LIMIT 1'); await q('SELECT 1 x FROM agent_apps LIMIT 1'); await q('SELECT 1 x FROM invites LIMIT 1'); }
   catch (e) { throw new Error('The database is missing the newest tables. In Supabase run supabase/1-schema.sql and then supabase/2-app-user.sql again. (' + e.message + ')'); }
   if ((await getSet('ind_price_v1')) == null) { await run('UPDATE prices SET price_ind = CASE WHEN price_ind = 0 THEN GREATEST(CEIL(price * 1.5 / 50.0)::int * 50, price + 100) ELSE price_ind END'); await setSet('ind_price_v1', '1'); } // one-time: give every service a visible individual price (you can change each one in Admin -> Set Prices)
+  if ((await getSet('ind_price_v2')) == null) { // one-time: move individual prices that were still on the first automatic formula (+50%) to the new tiered one. Prices you typed yourself are left alone.
+    for (const r of await all('SELECT k,price,price_ind FROM prices')) { const nw = indAuto(r.price); if ((r.price_ind === 0 || r.price_ind === indAutoV1(r.price)) && r.price_ind !== nw) await run('UPDATE prices SET price_ind=? WHERE k=?', nw, r.k); }
+    await setSet('ind_price_v2', '1'); }
   if ((await getSet('open_to_all_v1')) == null) { await run('UPDATE prices SET agent_only=0'); await setSet('open_to_all_v1', '1'); await setSet('agent_lock_v1', '1'); } // one-time: every service is open to everyone; unverified people simply pay the individual price
   try { const c = JSON.parse((await getSet('provider_list')) || '{}'); if (c.lists) LISTS = c.lists; listAt = c.at || 0; } catch { listAt = 0; }
 }
@@ -349,7 +355,7 @@ app.post('/api/me', auth, wrap(async (req, res) => {
     q("SELECT COUNT(*) n FROM reqs WHERE uid=? AND status='pending'", req.user.id), cfgAll()]);
   const P = Object.fromEntries(rows.map(r => [r.k, r])), { id, name, email, bal: b, admin, phone } = req.user;
   res.json({ ok: true, user: { id, name, email, bal: b, admin, phone, agentStatus: admin ? 'approved' : req.user.agent_status, agent: req.user.agent }, whatsapp: c.whatsapp || E.WHATSAPP || '', paystack: !!E.PAYSTACK_SECRET, paystackLive: paystackLive(c), bankReady: bankAccounts(c).length > 0, passFee: PASS_FEE, twofa: !!req.user.totp_on, funded: t.funded, spent: t.spent, pending: pend.n,
-    services: Object.values(S).map(sv => ({ key: sv.key, group: sv.group, label: sv.label, fields: sv.fields, kind: sv.kind, choices: choicesFor(sv), optional: sv.optional || [], agentOnly: !!P[sv.key].agent_only, locked: !!P[sv.key].agent_only && !req.user.agent, active: !!P[sv.key].active, price: priceView(P[sv.key], req.user), agentPrice: agentOf(P[sv.key]),
+    services: Object.values(S).map(sv => ({ key: sv.key, group: sv.group, label: sv.label, fields: sv.fields, kind: sv.kind, choices: choicesFor(sv), optional: sv.optional || [], agentOnly: !!P[sv.key].agent_only, locked: !!P[sv.key].agent_only && !req.user.agent, active: !!P[sv.key].active, price: priceView(P[sv.key], req.user), agentPrice: agentOf(P[sv.key]), indPrice: indOf(P[sv.key]),
       ...(admin ? { sell: P[sv.key].price, sellInd: indOf(P[sv.key]), cost: P[sv.key].cost } : {}) })) });
 }));
 app.post('/api/profile', auth, wrap(async (req, res) => {
@@ -366,6 +372,17 @@ app.post('/api/profile', auth, wrap(async (req, res) => {
 app.post('/api/history', auth, wrap(async (req, res) => res.json({ ok: true, rows: await all('SELECT svc,amt,status,at FROM tx WHERE uid=? ORDER BY id DESC LIMIT 200', req.user.id) })));
 
 /* ---------- admin two-step login setup ---------- */
+/* ---------- my results: a customer's own saved results, kept 30 days. Opening or downloading one never costs anything (no provider call, no charge).
+   Only results that were really delivered ('success' / 'completed') are shown; anything marked "needs review" stays admin-only, because that money may have been refunded. ---------- */
+const MY_RES = "uid=? AND outcome IN ('success','completed') AND at > now() - interval '30 day'";
+app.post('/api/results/list', auth, wrap(async (req, res) => res.json({ ok: true, days: 30, rows: await all('SELECT id,at,label,hint,price,pdf IS NOT NULL AS has_pdf FROM results WHERE ' + MY_RES + ' ORDER BY id DESC LIMIT 200', req.user.id) })));
+app.post('/api/results/get', auth, limit('resget', 60, 60e3), wrap(async (req, res) => {
+  const r = await q('SELECT id,at,label,pdf,raw,info,photo FROM results WHERE id=? AND ' + MY_RES, Number(req.body.id) || 0, req.user.id);
+  if (!r) return res.json({ ok: false, msg: 'This result was not found. Results are kept for 30 days.' });
+  let info = null; try { info = JSON.parse(r.info); } catch {} if (!info || !Object.keys(info).length) { try { info = dataOf(JSON.parse(r.raw)); } catch { info = {}; } } // older rows: rebuild from the saved reply
+  res.json({ ok: true, id: r.id, at: r.at, label: r.label, data: info, photo: r.photo, pdf: r.pdf });
+}));
+app.post('/api/results/delete', auth, wrap(async (req, res) => { const n = (await run('DELETE FROM results WHERE id=? AND uid=?', Number(req.body.id) || 0, req.user.id)).changes; res.json(n ? { ok: true, msg: 'Deleted. It cannot be recovered.' } : { ok: false, msg: 'Result not found.' }); }));
 app.post('/api/2fa/setup', auth, adminOnly, wrap(async (req, res) => {
   if (req.user.totp_on) return res.json({ ok: false, msg: 'Two-step login is already on.' });
   const secret = b32enc(crypto.randomBytes(20));
@@ -539,6 +556,10 @@ app.post('/api/paystack/webhook', wrap(async (req, res) => {
 
 /* ---------- admin ---------- */
 const adm = [auth, adminOnly];
+/* ---------- guide: the admin chapters are sent only to the admin (the customer chapters are a normal public file) ---------- */
+const GUIDE_ADMIN = require('./guide-admin.js');
+app.post('/api/guide/admin', adm, (req, res) => res.json({ ok: true, part: GUIDE_ADMIN }));
+
 const aid = async () => ((await q('SELECT id FROM users WHERE lower(email)=?', ADMIN)) || {}).id || 0;
 app.post('/api/admin/stats', adm, wrap(async (req, res) => {
   const a = await aid(), n = async (s, ...p) => (await q(s, ...p)).n, c = await cfgAll();

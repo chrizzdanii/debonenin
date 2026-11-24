@@ -61,7 +61,8 @@ function modal(title,...body){const m=h('div',{class:'modal',role:'dialog','aria
 const TERMS=[['Authorised use','Use these services only with the consent of the person whose details you check, and only for lawful purposes. Misuse can lead to account suspension and a report to the authorities.'],
 ['Data protection','We handle personal data in line with the Nigeria Data Protection Act 2023. Results are shown to you on screen. So that a lost download can be recovered and disputes can be settled, a copy of each successful result is kept for up to 30 days, visible only to our administrator, then deleted. Results of agency requests (IPE, validation, personalisation) are kept for 7 days so you can collect them. We do not sell data.'],
 ['Payments','All wallet funding is done through Paystack. We never see or store your card details. Paystack charges a processing fee; it is shown before you pay and is added to your payment, so your wallet is credited with the full amount you choose. Wallet balances are used only for services on this site.'],
-['Charges and refunds','The price is shown before every check. If a check cannot be completed, or an agency request fails, the fee returns to your wallet automatically. Some lookup services charge even when no record is found; the result screen says so.'],
+['I closed the page. Do I pay again?','No. Every successful result is saved in My Results for 30 days. Open it again, view it or download the slip as many times as you like. It never costs anything.'],
+  ['Charges and refunds','The price is shown before every check. If a check cannot be completed, or an agency request fails, the fee returns to your wallet automatically. Some lookup services charge even when no record is found; the result screen says so.'],
 ['Agent verification','Everyone can use every service. Verified agents pay lower prices than individuals. To apply you give your business details and upload an ID document. We use them only to decide your application and keep them while your account is active (documents of rejected applications are deleted after 90 days). Only our administrator can see them.'],
 ['Your account','Keep your password private. Accounts used for fraud or abuse may be suspended without notice.']];
 function showTerms(){modal('Terms & Privacy',TERMS.map(([t,b])=>[h('h4',{style:'margin:14px 0 4px'},t),h('p',{class:'mut'},b)]))}
@@ -117,6 +118,7 @@ const NAV=()=>[
   ['FINANCE & WALLET',[['wallet','My Wallet','wallet'],['deposit','Deposit / Fund','plus'],['transactions','Transactions','swap']]],
   ['IDENTITY & VERIFICATIONS',[['nin','NIN Verification','finger'],['phone','NIN via Phone','phone'],['demo','NIN Demographic','demo'],['bvn','BVN Verification','shieldck'],['more','More Verifications','idcard']]],
   ['NIN SERVICES',[['ipe','IPE Clearance','shield'],['personalization','NIN Personalisation','badge'],['validation','NIN Validation','circle'],['requests','My Requests','file']]],
+  ['RESULTS & HELP',[['results','My Results','file'],['guide','Guide & Tour','book']]],
   ['ACCOUNT & SUPPORT',[['agent','Agent Verification','badge'],['profile','Profile Settings','user'],['wa','Direct WhatsApp','wa','24/7'],['logout','Log Out','out']]]];
 const curView=()=>location.hash.slice(2)||'dashboard';
 function sidebar(){
@@ -132,14 +134,15 @@ function toggleSide(){const a=$('#app');if(innerWidth<=900)a.classList.toggle('o
 function topbar(){
   const inp=h('input',{placeholder:'Search services, NIN, BVN, wallet…',autocomplete:'off'}),dd=h('div',{class:'dd hide'});
   const find=()=>{const t=inp.value.trim().toLowerCase();dd.replaceChildren();if(!t){dd.classList.add('hide');return}
-    const all=[...PAGES.map(p=>[p.id,p.t,p.i]),['wallet','My Wallet','wallet'],['deposit','Deposit / Fund','plus'],['transactions','Transactions','swap'],['requests','My Requests','file']].filter(x=>x[1].toLowerCase().includes(t)).slice(0,7);
+    const all=[...PAGES.map(p=>[p.id,p.t,p.i]),['wallet','My Wallet','wallet'],['deposit','Deposit / Fund','plus'],['transactions','Transactions','swap'],['requests','My Requests','file'],['results','My Results','file'],['guide','Guide & Tour','book'],['agent','Agent Verification','badge'],['profile','Profile Settings','user']].filter(x=>x[1].toLowerCase().includes(t)).slice(0,7);
     all.forEach(([v,l,i])=>dd.append(h('a',{href:'#/'+v,on:{click:()=>{inp.value='';dd.classList.add('hide')}}},ic(i,16),l)));
     if(!all.length)dd.append(h('div',{class:'mut',style:'padding:12px 14px'},'No matching service.'));dd.classList.remove('hide')};
   inp.addEventListener('input',find);inp.addEventListener('keydown',e=>{if(e.key==='Enter'){const a=dd.querySelector('a');if(a)a.click()}});
   document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();inp.focus()}});
   const um=h('div',{class:'um hide'},h('a',{class:'it',href:'#/profile'},ic('user',17),'Profile Settings'),h('button',{class:'it red',on:{click:async()=>{await api('logout');location.hash='';location.reload()}}},ic('out',17),'Log Out'));
-  const uc=h('div',{class:'uc',role:'button',tabindex:'0',style:'cursor:pointer',on:{click:()=>um.classList.toggle('hide')}},h('div',{class:'av'},(ME.name||ME.email)[0].toUpperCase()),h('div',{style:'text-align:left'},h('b',{},(ME.name||ME.email.split('@')[0]).slice(0,18)),h('small',{},ME.admin?'Admin':'Personal')),um);
+  const uc=h('div',{class:'uc',role:'button',tabindex:'0',style:'cursor:pointer',on:{click:()=>um.classList.toggle('hide')}},h('div',{class:'av'},(ME.name||ME.email)[0].toUpperCase()),h('div',{style:'text-align:left'},h('b',{},(ME.name||ME.email.split('@')[0]).slice(0,18)),h('small',{},ME.admin?'Admin':ME.agent?'Verified agent':'Personal')),um);
   return h('div',{class:'tbar'},h('button',{class:'sq','aria-label':'Toggle menu',on:{click:toggleSide}},ic('panel',19)),h('div',{class:'srch'},h('div',{class:'ig'},ic('search',17),inp,h('kbd',{},'Ctrl K')),dd),
+    h('button',{class:'sq','aria-label':'Take a tour',title:'Take a tour',on:{click:()=>startTour(ME.admin?'admin':'customer')}},ic('help',19)),
     h('button',{class:'sq','aria-label':'Switch light or dark mode',on:{click:flipTheme},html:'<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>'}),
     h('a',{class:'sq',href:'#/requests','aria-label':'Requests',style:'position:relative'},ic('bell',19),CF.pending?h('i',{class:'dot'}):null),uc);
 }
@@ -158,7 +161,7 @@ function render(){
   const p=PAGES.find(x=>x.id===v);
   if(p)return pageView(m,p);
   if(v.startsWith('transfer/'))return transferPage(m,decodeURIComponent(v.slice(9)));
-  const map={agent:agentPage,'a/agents':aAgents,dashboard,wallet,deposit,transactions,requests,profile,more,'a/transfers':aTransfers,'a/overview':aOverview,'a/prices':aPrices,'a/users':aUsers,'a/results':aResults,'a/payments':aPayments,'a/requests':aRequests,'a/settings':aSettings};
+  const map={guide:guidePage,results:resultsPage,agent:agentPage,'a/agents':aAgents,dashboard,wallet,deposit,transactions,requests,profile,more,'a/transfers':aTransfers,'a/overview':aOverview,'a/prices':aPrices,'a/users':aUsers,'a/results':aResults,'a/payments':aPayments,'a/requests':aRequests,'a/settings':aSettings};
   if(v.startsWith('a/')&&!ME.admin)return location.hash='#/dashboard';
   (map[v]||dashboard)(m);
 }
@@ -187,7 +190,7 @@ function dashboard(m){
   tabs.forEach(t=>tb.append(h('button',{class:'tab',on:{click:()=>{tabSel=t;paintTabs();draw()}}},t)));
   const s=h('input',{placeholder:'Search service…',value:tileQ});s.addEventListener('input',()=>{tileQ=s.value;draw()});
   tb.append(h('div',{class:'ig'},ic('search',16),s));
-  m.append(hero(),agentBanner(),h('div',{class:'cd pad'},tb,box));paintTabs();draw();
+  m.append(hero(),guideCard(),agentBanner(),h('div',{class:'cd pad'},tb,box));paintTabs();draw();
 }
 function more(m){
   m.append(crumb(['Dashboard'],['More Verifications']),titleRow('idcard','More Verifications','Instant API'));
@@ -217,6 +220,7 @@ function pageResult(box,x,pageId){
   box.replaceChildren();
   if(x.submitted){box.append(emptyBox('circle','Request submitted',x.msg),h('div',{style:'text-align:center;padding-bottom:26px'},h('a',{class:'btn',href:'#/requests'},'Track request')));return}
   box.append(resultCard(x,pageId));
+  if((x.ok||x.status==='completed')&&!x.submitted)box.append(h('p',{class:'mut',style:'font-size:12.5px;margin:-6px 20px 18px'},'Saved in ',h('a',{href:'#/results',style:'color:var(--y);font-weight:700'},'My Results'),' for 30 days. Closing this page is safe, and opening it again is free.'));
 }
 function pdfBtn(pdf,name){return h('button',{class:'btn',on:{click:()=>{const bin=atob(pdf),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);const a=h('a',{href:URL.createObjectURL(new Blob([u],{type:'application/pdf'})),download:name});a.click()}}},ic('down',16),'Download slip (PDF)')}
 function pageView(m,p){
@@ -260,7 +264,7 @@ function wallet(m){
   const info=h('div',{class:'cd pad',style:'margin-top:16px'},h('h3',{style:'margin-bottom:6px'},'Wallet Status & Limits'),
     [['Status',h('span',{class:'badge'},'Active')],['Minimum deposit',N(100)],['Maximum single deposit',N(500000)],['Pending requests',String(CF.pending||0)]].map(([a,b])=>h('div',{class:'rowk'},h('span',{class:'mut'},a),h('b',{},b))));
   m.append(h('div',{class:'wg'},h('div',{},card,info),h('div',{},h('div',{class:'s3'},st('MAIN BALANCE',balTxt(),'Available to spend',true),st('TOTAL FUNDED',N(CF.funded),'All deposits'),st('TOTAL SPENT',N(CF.spent),'Verifications and services')),
-    h('div',{class:'cd pad',style:'margin-top:16px'},h('h3',{style:'margin-bottom:10px'},'How funding works'),h('ul',{class:'ck'},['Pay securely with Paystack (card, bank transfer or USSD).','Your wallet is credited automatically once payment is confirmed.','Failed or empty checks are refunded to this wallet.','Verification results are never stored on our servers.'].map(t=>h('li',{},ic('check',15),t)))))));
+    h('div',{class:'cd pad',style:'margin-top:16px'},h('h3',{style:'margin-bottom:10px'},'How funding works'),h('ul',{class:'ck'},['Pay securely with Paystack (card, bank transfer or USSD).','Your wallet is credited automatically once payment is confirmed.','Failed or empty checks are refunded to this wallet.','Successful results are saved in My Results for 30 days, so you can open them again for free.'].map(t=>h('li',{},ic('check',15),t)))))));
 }
 function deposit(m){
   const live=!!CF.paystackLive;let mode='bank';
@@ -587,10 +591,11 @@ async function aAgents(m){
 
 /* ===== boot ===== */
 async function boot(){
+  guideInit();
   const r=await api('me');
   if(!r.ok){ME=null;return authView()}
   ME=r.user;CF=r;buildPages(r.services);shell();
-  if(!location.hash)location.hash='#/dashboard';render();
+  if(!location.hash)location.hash='#/dashboard';render();maybeWelcome();
   const ref=new URLSearchParams(location.search).get('paid');
   if(ref){history.replaceState(null,'','/'+location.hash);const x=await api('pay/verify',{ref});
     if(x.ok){setBal(x.bal);toast(x.status==='paid'?'Payment received. Your wallet has been credited.':x.status==='failed'?'That payment failed. You were not charged.':'Payment is still processing. Your wallet updates once it clears.')}}

@@ -16,7 +16,7 @@ Wallet funding by Paystack and by bank transfer with receipt approval. Admin too
 | `scripts/migrate.js` | Runs the SQL files from your computer (optional). |
 | `scripts/import-sqlite.js` | One-time copy of an old `data.db` into Supabase. |
 | `vercel.json` | Vercel settings: routing, security headers, region, daily job. |
-| `tests/` | 79 automated tests (need a Postgres, see below). |
+| `tests/` | 85 automated tests (need a Postgres, see below). |
 
 ## Run on your own computer
 1. Node 22, then `npm install`.
@@ -33,7 +33,7 @@ Without `TEST_DATABASE_URL` the database tests are skipped. The tests run the we
 
 ## Agent and individual pricing, registration controls (version 5)
 - Registration needs a mobile number (unique). Modes: open / invite only / closed, set by the admin. A hidden field traps simple bots.
-- Every service is open to everyone. Verified agents pay the **agent price**; unverified individuals pay a higher **individual price**. Both are set per service in Admin -> Set Prices (individual price 0 = automatic: agent price + 50%, rounded up to N50, at least N100 more). Charging is decided in `server.js`, never in the browser.
+- Every service is open to everyone. Verified agents pay the **agent price**; unverified individuals pay a higher **individual price**. Both are set per service in Admin -> Set Prices (individual price 0 = automatic and tiered: agent price up to N300 -> x2, N301-N600 -> x1.7, N601-N1,500 -> x1.5, above N1,500 -> x1.4; rounded up to the next N50). Charging is decided in `server.js`, never in the browser.
 - An optional "Agents only" switch per service can still lock a single service completely.
 - Users apply under *Agent Verification* (business details + ID document, stored in the database, visible only to the admin). The admin approves or rejects under *Agents & Invites*.
 
@@ -43,3 +43,11 @@ Without `TEST_DATABASE_URL` the database tests are skipped. The tests run the we
 - Background jobs are triggered from outside (Supabase pg_cron, cron-job.org or Vercel Cron) via `/api/cron/jobs`, protected by `CRON_SECRET`.
 - Receipt photos limited to 2.5 MB (Vercel's request limit is 4.5 MB).
 - New: admin two-step login, per-account login limits, same-origin check, sessions revoked on password change/suspension.
+
+## Guide Centre, Take a Tour and My Results (version 6)
+- `public/guide-content.js` holds the guide text for everyone (start, why DEBONE, customers, agents). Edit it to change the guide; the web page, the read-aloud voice and the PDF all come from it, and the price tables inside are built live from the site's real prices.
+- `guide-admin.js` holds the admin chapters. It sits OUTSIDE `public/` on purpose and is sent only to the signed-in admin (`POST /api/guide/admin`).
+- `public/guide.js` is the Guide page, search, read-aloud (browser speech, no outside service), the built-in PDF writer and the My Results page. `public/tour.js` is the guided tour (customer and admin versions).
+- My Results: `POST /api/results/list|get|delete`. A customer sees only their own results with outcome `success` or `completed`, from the last 30 days. Opening or downloading never calls the provider and never touches the wallet. Results marked `needs review` stay admin-only.
+- No database change is needed for version 6.
+
