@@ -43,7 +43,7 @@ function tourSteps(kind) {
     { sel: 'main .s3', title: 'Your totals', text: 'Main balance, total funded and total spent. Refunds are taken off what you spent.' },
     { go: '#/nin', sel: 'main .two > .cd:first-child', title: 'A service page', text: 'All instant services look like this. Fill in the details on the left. The answer appears on the right.' },
     { sel: 'main .cb select', title: 'Choose the slip type', text: 'Some services have several slip types. The price of each is shown beside its name.' },
-    { sel: 'main .fee', title: 'You see the price first', text: 'The Service Fee is shown before you press anything.' + (agent ? ' You are a verified agent, so this is the agent price.' : ' If you are not a verified agent, a note shows how much an agent would pay.') },
+    { sel: 'main .fee', title: 'You see the price first', text: 'The Service Fee is shown before you press anything.' + (agent ? ' You are a verified agent, so this is the agent price.' : '') },
     { sel: 'main .two .btn.w', title: 'Verify Now', text: 'The fee is taken only when you press this. If the check fails or the provider is busy, the fee is returned automatically. Pressing twice cannot charge you twice.' },
     { sel: 'main .two > .cd:last-child', title: 'Your result', text: 'The result appears here with a Download slip (PDF) button. Download it as many times as you like. It is always free after you have paid once.' },
     { go: '#/ipe', sel: 'main .two', title: 'Agency services', text: 'IPE clearance, NIN validation and NIN personalisation are not instant. You submit the request, then follow it under My Requests. If it fails, your money is returned.' },

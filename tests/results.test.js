@@ -49,7 +49,7 @@ test('admin chapters of the guide go only to the admin', async () => {
   const g = await call('boss', 'guide/admin'); assert.equal(g.ok, true); assert.ok(g.part.sections.length >= 10);
   const text = (await (await fetch(URL + '/guide-content.js')).text()); assert.ok(!/Approve and credit wallet/.test(text), 'admin steps must not be in the public file');
 });
-test('every service exposes both prices, and the individual one is higher', async () => {
-  const me = await call('ann', 'me'); assert.ok(me.services.every(s => s.indPrice >= s.agentPrice)); assert.ok(me.services.some(s => s.indPrice > s.agentPrice));
-  assert.equal(me.services.find(s => s.key === 'ipe').agentPrice, 1500); assert.equal(me.services.find(s => s.key === 'ipe').indPrice, 2250);
+test('customers see only their own price, never the agent price', async () => {
+  const me = await call('ann', 'me'); assert.ok(me.services.every(s => s.agentPrice === s.price && s.indPrice === s.price));
+  assert.equal(me.services.find(s => s.key === 'ipe').price, 2000);
 });

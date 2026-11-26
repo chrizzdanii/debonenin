@@ -43,25 +43,25 @@ test('a bot that fills the hidden field is refused and no account is made', asyn
 test('new accounts are unverified but can use every service, at the individual price', async () => {
   await reg('ann'); const me = await call('ann', 'me'); assert.equal(me.user.agentStatus, 'none'); assert.equal(me.user.agent, false);
   const n = await svc('ann', 'nin_premium'); assert.equal(n.locked, false);
-  assert.equal(n.agentPrice, 300); assert.equal(n.price, 550); // agent price 300 -> individual price 550 (cheap services: x1.8)
-  assert.ok(me.services.every(x => !x.locked && x.price > x.agentPrice), 'every service is open and costs an individual more than an agent');
+  assert.equal(n.price, 1050); assert.equal(n.agentPrice, 1050, 'customers must not see the agent price'); assert.equal(n.indPrice, 1050); // agent price 300 -> customer price 1050 (x3.5)
+  assert.ok(me.services.every(x => !x.locked && x.agentPrice === x.price), 'customers never receive the agent price');
   await db.x("UPDATE users SET bal=2000 WHERE email='ann@test.com'");
-  const r = await call('ann', 'run', { service: 'nin_premium', f: { nin: '12345678901' } }); assert.equal(r.ok, true); assert.ok(r.pdf); assert.equal(await bal('ann'), 2000 - 550);
+  const r = await call('ann', 'run', { service: 'nin_premium', f: { nin: '12345678901' } }); assert.equal(r.ok, true); assert.ok(r.pdf); assert.equal(await bal('ann'), 2000 - 1050);
   await db.x("UPDATE users SET bal=2000 WHERE email='ann@test.com'");
 });
 test('lookup services also work for unverified users at the individual price', async () => {
-  const r = await call('ann', 'run', { service: 'cac_basic', f: { rc_number: '123456', company_type: 'RC' } }); assert.equal(r.ok, true); assert.equal(await bal('ann'), 2000 - 600); // agent 400 -> individual 600 (x1.5)
+  const r = await call('ann', 'run', { service: 'cac_basic', f: { rc_number: '123456', company_type: 'RC' } }); assert.equal(r.ok, true); assert.equal(await bal('ann'), 2000 - 1050); // agent 400 -> customer 1100 (x2.7)
   await db.x("UPDATE users SET bal=2000 WHERE email='ann@test.com'");
 });
 test('the admin sets the individual price per service, and it can never be below the agent price', async () => {
   const set = b => call('boss', 'admin/price', { key: 'bank_account', cost: 90, active: true, ...b });
   assert.match((await set({ price: 200, priceInd: 150 })).msg, /Individual price cannot be lower than the agent price/);
   assert.equal((await set({ price: 200, priceInd: 500 })).ok, true);
-  assert.equal((await svc('ann', 'bank_account')).price, 500); assert.equal((await svc('ann', 'bank_account')).agentPrice, 200);
+  assert.equal((await svc('ann', 'bank_account')).price, 500); assert.equal((await svc('ann', 'bank_account')).agentPrice, 500);
   assert.equal((await svc('boss', 'bank_account')).sellInd, 500);
-  for (const [agent, ind] of [[150, 300], [200, 400], [250, 450], [300, 550], [350, 550], [400, 600], [450, 700], [550, 850], [600, 900], [800, 1200], [1000, 1500], [1500, 2250], [1800, 2550]]) { // 0 = automatic, tiered: x1.8 up to 300, x1.5 up to 1500, x1.4 above; rounded up to N50
+  for (const [agent, ind] of [[150, 550], [200, 700], [250, 900], [300, 1050], [350, 1050], [400, 1100], [450, 1250], [550, 1500], [600, 1650], [800, 1650], [1000, 1800], [1500, 2700], [1800, 2700]]) { // 0 = automatic, tiered: x3.5 up to 300, x2.7 up to 600, x1.8 up to 1500, x1.4 above; rounded up to N50, at least N150 more
     assert.equal((await set({ price: agent, priceInd: 0 })).ok, true);
-    assert.equal((await svc('ann', 'bank_account')).price, ind, 'agent ' + agent); assert.equal((await svc('ann', 'bank_account')).agentPrice, agent); }
+    assert.equal((await svc('ann', 'bank_account')).price, ind, 'agent ' + agent); assert.equal((await svc('boss', 'bank_account')).sellInd, ind); }
   assert.equal((await set({ price: 200, priceInd: 0 })).ok, true); // back to the normal agent price
 });
 test('an individual never sees the provider cost', async () => assert.equal((await svc('ann', 'nin_premium')).cost, undefined));
@@ -75,7 +75,7 @@ test('an application needs valid details and a real document', async () => {
 });
 test('a good application goes to review and cannot be sent twice', async () => {
   const r = await call('ann', 'agent/apply', application()); assert.equal(r.ok, true); assert.equal(r.status, 'pending');
-  assert.equal((await call('ann', 'me')).user.agentStatus, 'pending'); assert.equal((await svc('ann', 'nin_premium')).price, 550); // still the individual price while waiting
+  assert.equal((await call('ann', 'me')).user.agentStatus, 'pending'); assert.equal((await svc('ann', 'nin_premium')).price, 1050); // still the individual price while waiting
   assert.match((await call('ann', 'agent/apply', application())).msg, /already waiting/);
   assert.equal((await call('ann', 'agent/status')).app.status, 'pending');
 });
@@ -99,13 +99,13 @@ test('a rejection needs a reason and the applicant can apply again', async () =>
   assert.match((await call('boss', 'admin/agent/decide', { id: a.id, approve: false, reason: '' })).msg, /why/);
   assert.equal((await call('boss', 'admin/agent/decide', { id: a.id, approve: false, reason: 'The photo is too blurry to read.' })).ok, true);
   const st = await call('bea', 'agent/status'); assert.equal(st.status, 'rejected'); assert.match(st.app.reason, /blurry/);
-  assert.equal((await svc('bea', 'nin_premium')).price, 550); // rejected: still pays the individual price
+  assert.equal((await svc('bea', 'nin_premium')).price, 1050); // rejected: still pays the individual price
   assert.equal((await call('bea', 'agent/apply', application())).ok, true); assert.equal((await call('bea', 'agent/status')).status, 'pending');
 });
 test('the admin can grant and remove agent access directly', async () => {
   const id = (await call('boss', 'admin/users', { q: 'bea@' })).rows[0].id;
   assert.equal((await call('boss', 'admin/user/agent', { id, status: 'approved' })).ok, true); assert.equal((await svc('bea', 'nin_premium')).price, 300);
-  assert.equal((await call('boss', 'admin/user/agent', { id, status: 'none' })).ok, true); assert.equal((await svc('bea', 'nin_premium')).price, 550);
+  assert.equal((await call('boss', 'admin/user/agent', { id, status: 'none' })).ok, true); assert.equal((await svc('bea', 'nin_premium')).price, 1050);
 });
 test('the admin account is never locked', async () => assert.equal((await svc('boss', 'nin_premium')).locked, false));
 test('each service can be switched between "agents only" and "open to all"', async () => {

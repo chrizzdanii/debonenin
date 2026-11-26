@@ -1,3 +1,13 @@
+# v12 update (balanced agent prices)
+Agent prices rebalanced: IPE clearance N1,500 -> N1,100, NIN validation N800 -> N900, BVN + bank match N250 -> N200. Only prices still at the old default move (once); customer prices follow if automatic. Anything you typed in Admin -> Set Prices is untouched.
+
+---
+
+# v9 update (customers never see agent prices, higher customer prices)
+No SQL needed. Customers (and the guide, tour and assistant they see) no longer show what agents pay; only verified agents and the admin see the agent price. Automatic customer prices: agent price up to N300 -> x3.5, up to N600 -> x2.7, up to N1,500 -> x1.8, above -> x1.4, rounded up to N50 and at least N150 more (e.g. agent N300 -> customer N1,050, agent N1,500 -> N2,700). Only prices you did not type yourself are moved. To set any price by hand: Admin -> Set Prices -> Individual price -> Save.
+
+---
+
 # v8 update (SEO, public pages, logo) - READ THIS FIRST
 No SQL is needed. Upload everything to GitHub as before.
 

@@ -39,7 +39,7 @@ function priceBlocks(list) {
   const b = [{ t: 'prices', rows, mode: admin ? 'admin' : agent ? 'agent' : 'ind' }];
   if (admin) b.unshift({ t: 'p', text: 'You are the admin, so you pay the provider price. Agents and individuals pay the prices on the right.' });
   else if (agent) b.unshift({ t: 'p', text: 'You are a **verified agent**, so you pay the agent price.' });
-  else b.unshift({ t: 'p', text: 'This is what you pay now, as an individual. **Verified agents pay less** (see the agent price). The price is always shown on the service page before you press the button.' });
+  else b.unshift({ t: 'p', text: 'This is what you pay now, as an individual. **Verified agents pay less.** The price is always shown on the service page before you press the button.' });
   if (list.some(s => s.locked)) b.push({ t: 'note', kind: 'warn', text: 'A service marked agents only is restricted by the owner to verified agents.' });
   return b;
 }
@@ -135,10 +135,10 @@ function chatSay(blocks) {
   chunkText(speechText(text)).forEach(piece => { const u = new SpeechSynthesisUtterance(piece); const v = ttsPick(); if (v) { u.voice = v; u.lang = v.lang } u.rate = TTS.rate || 1; speechSynthesis.speak(u) });
 }
 function chatRows(b) {
-  const f = x => N(x), r = b.rows, mode = b.mode, head = mode === 'ind' ? ['Service', 'You pay', 'Agent pays'] : mode === 'agent' ? ['Service', 'You pay', 'Individual pays'] : ['Service', 'You pay', 'Agent', 'Individual'];
+  const f = x => N(x), r = b.rows, mode = b.mode, head = mode === 'ind' ? ['Service', 'You pay'] : mode === 'agent' ? ['Service', 'You pay', 'Individual pays'] : ['Service', 'You pay', 'Agent', 'Individual'];
   const t = h('table', { class: 'tbl chatpr' }, h('tr', {}, head.map(x => h('th', {}, x))));
   r.forEach(x => t.append(h('tr', { class: x.off ? 'off' : '' }, h('td', {}, x.label + (x.off ? ' (off)' : x.locked ? ' (agents only)' : '')), h('td', { class: 'pm' }, f(x.mine)),
-    ...(mode === 'ind' ? [h('td', {}, h('span', {}, f(x.agent)), h('small', {}, ' save ' + f(Math.max(0, x.mine - x.agent))))] : mode === 'agent' ? [h('td', {}, f(x.ind))] : [h('td', {}, f(x.agent)), h('td', {}, f(x.ind))]))));
+    ...(mode === 'ind' ? [] : mode === 'agent' ? [h('td', {}, f(x.ind))] : [h('td', {}, f(x.agent)), h('td', {}, f(x.ind))]))));
   return h('div', { class: 'ov' }, t);
 }
 function chatBlock(b) {

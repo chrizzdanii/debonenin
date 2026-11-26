@@ -33,8 +33,9 @@ function partsFor(tab) {
 function resolveBlock(b) {
   if (b[0] !== 'dyn') return [b];
   const act = Object.values(SV).filter(s => s.active);
-  if (b[1] === 'services') return [['table', ['Service', 'Group', 'What you type', 'Agent price', 'Individual price'], act.map(s => [s.label, s.group, Object.entries(s.fields).map(([k, l]) => l + ((s.optional || []).includes(k) && !/optional/i.test(l) ? ' (optional)' : '')).join(', '), N(s.agentPrice), N(s.indPrice)])]];
-  if (b[1] === 'savings') return [['table', ['Service', 'Individual price', 'Agent price', 'You save per check'], act.filter(s => s.indPrice > s.agentPrice).map(s => [s.label, N(s.indPrice), N(s.agentPrice), N(s.indPrice - s.agentPrice)])]];
+  if (b[1] === 'services') { const seeAg = ME.admin || ME.agent, typ = s => Object.entries(s.fields).map(([k, l]) => l + ((s.optional || []).includes(k) && !/optional/i.test(l) ? ' (optional)' : '')).join(', ');
+    return seeAg ? [['table', ['Service', 'Group', 'What you type', 'Agent price', 'Individual price'], act.map(s => [s.label, s.group, typ(s), N(s.agentPrice), N(s.indPrice)])]] : [['table', ['Service', 'Group', 'What you type', 'Price'], act.map(s => [s.label, s.group, typ(s), N(s.price)])]]; }
+  if (b[1] === 'savings') return !(ME.admin || ME.agent) ? [['tip', 'Verified agents pay lower prices on every service. Apply under Agent Verification and the owner will confirm your agent price once you are approved.']] : [['table', ['Service', 'Individual price', 'Agent price', 'You save per check'], act.filter(s => s.indPrice > s.agentPrice).map(s => [s.label, N(s.indPrice), N(s.agentPrice), N(s.indPrice - s.agentPrice)])]];
   if (b[1] === 'myprice') return [ME.admin ? ['tip', 'You are signed in as the admin, so you pay the provider price with no markup.'] : ME.agent ? ['good', 'You are a verified agent. You already pay the lower agent price on every service.'] : ['tip', 'You are not a verified agent yet, so you pay the individual price. Apply under Agent Verification to pay the lower agent price.']];
   return [];
 }

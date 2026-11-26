@@ -77,7 +77,7 @@ start: { title: 'Start here', sections: [
   ['h', 'What the assistant can do'],
   ['list', [
     'Explain any part of the site: signing up, funding, running a check, slips, My Results, My Requests, agents, safety and problems.',
-    'Tell you **live prices**. Ask “How much is a NIN slip?” and it shows what you pay and what a verified agent pays.',
+    'Tell you **live prices**. Ask “How much is a NIN slip?” and it shows what you pay.',
     'Tell you your **wallet balance** and your **agent status** when you are signed in.',
     'Read answers aloud: switch on the speaker button at the top of the chat window.',
     'For the admin, it also answers from the admin chapters. Customers never see those.']],
@@ -101,7 +101,7 @@ why: { title: 'Why DEBONE is better', sections: [
     ['You mistype a number and the money is wasted.', '**Checks before charging.** The site checks the format first (for example a NIN must be exactly 11 digits) and takes no money if the entry is wrong.'],
     ['You pay but your wallet is not funded.', '**Funding is tracked.** Paystack payments are credited automatically, once, and you can press “Check now”. Bank transfers have a reference, a progress bar and a clear status, and are credited when the owner confirms the money.'],
     ['Long requests vanish and nobody tells you.', '**My Requests.** IPE, validation and personalisation are tracked. If one fails, the money is returned automatically.'],
-    ['Prices are hidden until after you pay.', '**You see the fee first.** The price is shown on the page before you press the button, and you also see how much a verified agent would pay.'],
+    ['Prices are hidden until after you pay.', '**You see the fee first.** The price is shown on the page before you press the button.'],
     ['Weak accounts and shared logins.', '**Protected accounts.** Passwords are stored scrambled, repeated wrong guesses are blocked, other devices are signed out when you change your password, and the owner’s login needs a second code.'],
     ['Your documents and results stay online forever.', '**Short retention.** Results are kept for 30 days and then deleted. Agent ID documents are seen only by the owner.'],
     ['No one to talk to.', '**Direct WhatsApp support** from inside the site.']]],
@@ -200,7 +200,7 @@ customer: { title: 'For customers', sections: [
     'Open the service from the Dashboard or the menu. The page has a form on the left and a result area on the right.',
     'If the service has several slip types (for example NIN slip Premium, Standard, Regular, VNIN and Basic), pick one from **Slip type**. The price of each type is shown beside its name.',
     'Fill in the boxes. A red star means the box is required. Some boxes are lists: choose from them, or start typing a bank name and pick it.',
-    'Look at the **Service Fee** line. It shows what you will pay. If you are not a verified agent, a note shows what an agent would pay.',
+    'Look at the **Service Fee** line. It shows what you will pay.',
     'Check your **Wallet Balance** just below it.',
     'Press **Verify Now**. The fee is taken, the check runs, and the answer appears on the right within seconds.']],
   ['h', 'What can happen'],
@@ -234,7 +234,7 @@ customer: { title: 'For customers', sections: [
     'Only you (and the site owner, for support) can see your results. Other customers cannot.']],
 ]},
 { id: 'c-services', title: 'Every service and what you need', blocks: [
-  ['p', 'This table is live. It shows every service that is switched on right now, what you must type, and both prices. The prices are always up to date.'],
+  ['p', 'This table is live. It shows every service that is switched on right now, what you must type, and your price. The prices are always up to date.'],
   ['dyn', 'services'],
   ['h', 'In plain words'],
   ['list', [
@@ -344,7 +344,7 @@ agent: { title: 'For agents', sections: [
 { id: 'a-prices', title: 'Your agent price', blocks: [
   ['p', 'This table compares the two prices for the main services. The difference is your saving on every single check.'],
   ['dyn', 'savings'],
-  ['tip', 'The service page shows “Agent price” next to the fee when you are verified. Individuals see a note telling them how much an agent would pay.'],
+  ['tip', 'The service page shows “Agent price” next to the fee when you are verified. Individuals only ever see their own price.'],
 ]},
 { id: 'a-business', title: 'Running your agent business well', blocks: [
   ['list', [

@@ -47,8 +47,8 @@ add('phone_regular', 'NIN', 'NIN by phone - Regular', 200, 'nin_by_phone_regular
 add('nin_demo', 'NIN', 'NIN by demographics', 300, 'nin_by_demo.php', { firstname: 'First name', lastname: 'Last name', dob: 'Date of birth (DD-MM-YYYY)', gender: 'Gender (optional)' }, { optional: ['gender'], dobDmy: true, choices: { gender: ['MALE', 'FEMALE'] } });
 add('bvn_premium', 'BVN', 'BVN slip - Premium', 250, 'bvn_premium_slip.php', bvn);
 add('bvn_standard', 'BVN', 'BVN slip - Standard', 200, 'bvn_full_details_slip.php', bvn);
-add('ipe', 'NIN agency', 'IPE clearance', 1500, 'ipe.php', { trackingID: 'Tracking ID' }, { kind: 'async', status: 'ipe_status.php', trackRef: true });
-add('validation', 'NIN agency', 'NIN validation', 800, 'validation.php', { nin: 'NIN (11 digits)', error_type: 'Error type' }, { kind: 'async', status: 'validation_status.php', choices: { error_type: [['no_record', 'No Record Found'], ['sim', 'SIM Validation'], ['v.nin_validation', 'V.NIN Validation'], ['update_records', 'Update Records Validation'], ['bank_validation', 'Bank Validation'], ['modification', 'Modification Validation'], ['photo_error', 'Photographic Error']] } });
+add('ipe', 'NIN agency', 'IPE clearance', 1100, 'ipe.php', { trackingID: 'Tracking ID' }, { kind: 'async', status: 'ipe_status.php', trackRef: true });
+add('validation', 'NIN agency', 'NIN validation', 900, 'validation.php', { nin: 'NIN (11 digits)', error_type: 'Error type' }, { kind: 'async', status: 'validation_status.php', choices: { error_type: [['no_record', 'No Record Found'], ['sim', 'SIM Validation'], ['v.nin_validation', 'V.NIN Validation'], ['update_records', 'Update Records Validation'], ['bank_validation', 'Bank Validation'], ['modification', 'Modification Validation'], ['photo_error', 'Photographic Error']] } });
 add('personalization', 'NIN agency', 'NIN personalisation', 300, 'personalization.php', { tracking_id: 'Enrolment tracking ID' }, { kind: 'async', status: 'personalization_status.php', trackRef: true });
 const L = 'lookup.php', cac = { rc_number: 'RC / BN number (digits)', company_type: 'Registration type' };
 const COMPANY_TYPES = [['RC', 'RC - Registered company'], ['BN', 'BN - Business name'], ['IT', 'IT - Incorporated trustees'], ['LP', 'LP - Limited partnership'], ['LLP', 'LLP - Limited liability partnership']];
@@ -79,7 +79,7 @@ lk('plate_advance', 'Vehicle', 'Plate number - Advanced', 400, { vehicle_number:
 lk('vin_chassis', 'Vehicle', 'Chassis (VIN) check', 400, { vin: 'Chassis number' });
 lk('bank_account', 'Bank & meter', 'Bank account name', 200, { number: 'Account number (10 digits)', bank_code: 'Bank' }, { dyn: ['bank_code'], rules: { number: DIG(10, 'Account number') } });
 lk('bank_account_match', 'Bank & meter', 'Account name match', 250, { number: 'Account number (10 digits)', bank_code: 'Bank', customer_name: 'Expected full name' }, { dyn: ['bank_code'], rules: { number: DIG(10, 'Account number'), customer_name: [/^[A-Za-z][A-Za-z .'-]{2,99}$/, 'Name must be 3 to 100 letters.'] } });
-lk('bvn_bank_verify', 'Bank & meter', 'BVN + bank account match', 250, { bvn: 'BVN (starts with 22)', bankCode: 'Bank', bankAccount: 'Account number (10 digits)' }, { dyn: ['bankCode'], rules: { bvn: [/^22\d{9}$/, 'BVN must be 11 digits starting with 22.', true], bankAccount: DIG(10, 'Account number') } });
+lk('bvn_bank_verify', 'Bank & meter', 'BVN + bank account match', 200, { bvn: 'BVN (starts with 22)', bankCode: 'Bank', bankAccount: 'Account number (10 digits)' }, { dyn: ['bankCode'], rules: { bvn: [/^22\d{9}$/, 'BVN must be 11 digits starting with 22.', true], bankAccount: DIG(10, 'Account number') } });
 lk('meter_address', 'Bank & meter', 'Address by meter number', 550, { meter_number: 'Meter or account number', electricity_company: 'Electricity company' }, { choices: { electricity_company: DISCOS }, rules: { meter_number: [/^\d{6,20}$/, 'Meter number must be 6 to 20 digits.', true] } });
 
 /* ---------- core helpers ---------- */
@@ -97,8 +97,11 @@ const px = k => q('SELECT price,price_ind,cost,active,agent_only FROM prices WHE
 /* TWO PRICE LEVELS. "price" = the verified-agent price. "price_ind" = what an unverified individual pays.
    price_ind = 0 means "work it out automatically". Cheap services get the biggest gap, because that is where agents earn most:
      agent price up to N300 -> x1.8, N301-N1,500 -> x1.5, above N1,500 -> x1.4. Rounded up to the next N50 (and always at least N100 more). */
-const indRule = a => a <= 300 ? [9, 5] : a <= 1500 ? [3, 2] : [7, 5]; // multiplier as a fraction, so there are no rounding surprises
-const indAuto = a => { const [n, d] = indRule(a); return Math.max(Math.ceil(a * n / (d * 50)) * 50, a + 100); };
+const indAutoV3 = a => { const [n, d] = a <= 300 ? [9, 5] : a <= 1500 ? [3, 2] : [7, 5]; return Math.max(Math.ceil(a * n / (d * 50)) * 50, a + 100); }; // the third version (x1.8 / x1.5 / x1.4), only used to upgrade untouched prices
+const indAutoV4 = a => { const [n, d] = a <= 300 ? [11, 5] : a <= 1500 ? [17, 10] : [3, 2]; return Math.max(Math.ceil(a * n / (d * 50)) * 50, a + 150); }; // the fourth version, only used to upgrade untouched prices
+const indAutoV5 = a => { const [n, d] = a <= 300 ? [4, 1] : a <= 600 ? [3, 1] : a <= 1500 ? [2, 1] : [3, 2]; return Math.max(Math.ceil(a * n / (d * 50)) * 50, a + 150, a > 1500 ? 3000 : a > 600 ? 1800 : a > 300 ? 1200 : 0); }; // the floors keep the customer price rising with the agent price // the fifth version, only used to upgrade untouched prices
+// CURRENT automatic customer price: agent price up to N300 -> x3.5, up to N600 -> x2.7, up to N1,500 -> x1.8, above -> x1.4. Rounded up to the next N50, at least N150 more, with floors so it always rises with the agent price.
+const indAuto = a => { const [n, d] = a <= 300 ? [7, 2] : a <= 600 ? [27, 10] : a <= 1500 ? [9, 5] : [7, 5]; return Math.max(Math.ceil(a * n / (d * 50)) * 50, a + 150, a > 1500 ? 2700 : a > 600 ? 1650 : a > 300 ? 1050 : 0); };
 const indAutoV2 = a => { const [n, d] = a <= 300 ? [2, 1] : a <= 600 ? [17, 10] : a <= 1500 ? [3, 2] : [7, 5]; return Math.max(Math.ceil(a * n / (d * 50)) * 50, a + 100); }; // the second version, only used to upgrade untouched prices
 const indAutoV1 = a => Math.max(Math.ceil(a * 1.5 / 50) * 50, a + 100); // the first version (+50%), only used to upgrade untouched prices
 const indOf = p => Math.max(p.price_ind > 0 ? p.price_ind : indAuto(p.price), p.price, p.cost); // never below the agent price or the provider price
@@ -141,8 +144,23 @@ async function init() {
     for (const r of await all('SELECT k,price,price_ind FROM prices')) { const nw = indAuto(r.price); if ((r.price_ind === 0 || r.price_ind === indAutoV1(r.price)) && r.price_ind !== nw) await run('UPDATE prices SET price_ind=? WHERE k=?', nw, r.k); }
     await setSet('ind_price_v2', '1'); }
   if ((await getSet('ind_price_v3')) == null) { // one-time: move untouched individual prices (still on an earlier automatic formula) to the market-checked tiers. Prices you typed yourself are left alone.
-    for (const r of await all('SELECT k,price,price_ind FROM prices')) { const nw = indAuto(r.price); if ((r.price_ind === 0 || r.price_ind === indAutoV1(r.price) || r.price_ind === indAutoV2(r.price)) && r.price_ind !== nw) await run('UPDATE prices SET price_ind=? WHERE k=?', nw, r.k); }
+    for (const r of await all('SELECT k,price,price_ind FROM prices')) { const nw = indAutoV3(r.price); if ((r.price_ind === 0 || r.price_ind === indAutoV1(r.price) || r.price_ind === indAutoV2(r.price)) && r.price_ind !== nw) await run('UPDATE prices SET price_ind=? WHERE k=?', nw, r.k); }
     await setSet('ind_price_v3', '1'); }
+  if ((await getSet('ind_price_v4')) == null) { // one-time: raise untouched individual prices to the higher tiers so agents stay worth it. Prices you typed yourself are left alone.
+    for (const r of await all('SELECT k,price,price_ind FROM prices')) { const nw = indAutoV4(r.price); if ((r.price_ind === 0 || r.price_ind === indAutoV1(r.price) || r.price_ind === indAutoV2(r.price) || r.price_ind === indAutoV3(r.price)) && r.price_ind !== nw) await run('UPDATE prices SET price_ind=? WHERE k=?', nw, r.k); }
+    await setSet('ind_price_v4', '1'); }
+  if ((await getSet('ind_price_v5')) == null) { // one-time: move untouched customer prices to the market-level tiers. Prices you typed yourself are left alone.
+    for (const r of await all('SELECT k,price,price_ind FROM prices')) { const nw = indAutoV5(r.price); if ((r.price_ind === 0 || r.price_ind === indAutoV1(r.price) || r.price_ind === indAutoV2(r.price) || r.price_ind === indAutoV3(r.price) || r.price_ind === indAutoV4(r.price)) && r.price_ind !== nw) await run('UPDATE prices SET price_ind=? WHERE k=?', nw, r.k); }
+    await setSet('ind_price_v5', '1'); }
+  if ((await getSet('ind_price_v6')) == null) { // one-time: move untouched customer prices to the slightly lower tiers. Prices you typed yourself are left alone.
+    for (const r of await all('SELECT k,price,price_ind FROM prices')) { const nw = indAuto(r.price); if ((r.price_ind === 0 || r.price_ind === indAutoV1(r.price) || r.price_ind === indAutoV2(r.price) || r.price_ind === indAutoV3(r.price) || r.price_ind === indAutoV4(r.price) || r.price_ind === indAutoV5(r.price)) && r.price_ind !== nw) await run('UPDATE prices SET price_ind=? WHERE k=?', nw, r.k); }
+    await setSet('ind_price_v6', '1'); }
+  if ((await getSet('agent_price_v2')) == null) { // one-time: balance agent prices (IPE 1500 -> 1100, NIN validation 800 -> 900, BVN + bank match 250 -> 200). Only prices still at the old default are moved; the customer price follows if it was automatic. Prices you typed yourself are left alone.
+    for (const [key, oldP, newP] of [['ipe', 1500, 1100], ['validation', 800, 900], ['bvn_bank_verify', 250, 200]]) {
+      const r = await q('SELECT price,price_ind FROM prices WHERE k=?', key); if (!r || r.price !== oldP) continue;
+      const auto = [0, indAutoV1(oldP), indAutoV2(oldP), indAutoV3(oldP), indAutoV4(oldP), indAutoV5(oldP), indAuto(oldP)].includes(r.price_ind);
+      await run('UPDATE prices SET price=?, price_ind=? WHERE k=?', newP, auto ? indAuto(newP) : r.price_ind, key); }
+    await setSet('agent_price_v2', '1'); }
   if ((await getSet('open_to_all_v1')) == null) { await run('UPDATE prices SET agent_only=0'); await setSet('open_to_all_v1', '1'); await setSet('agent_lock_v1', '1'); } // one-time: every service is open to everyone; unverified people simply pay the individual price
   try { const c = JSON.parse((await getSet('provider_list')) || '{}'); if (c.lists) LISTS = c.lists; listAt = c.at || 0; } catch { listAt = 0; }
 }
@@ -359,7 +377,7 @@ app.post('/api/me', auth, wrap(async (req, res) => {
     q("SELECT COUNT(*) n FROM reqs WHERE uid=? AND status='pending'", req.user.id), cfgAll()]);
   const P = Object.fromEntries(rows.map(r => [r.k, r])), { id, name, email, bal: b, admin, phone } = req.user;
   res.json({ ok: true, user: { id, name, email, bal: b, admin, phone, agentStatus: admin ? 'approved' : req.user.agent_status, agent: req.user.agent }, whatsapp: c.whatsapp || E.WHATSAPP || '', paystack: !!E.PAYSTACK_SECRET, paystackLive: paystackLive(c), bankReady: bankAccounts(c).length > 0, passFee: PASS_FEE, twofa: !!req.user.totp_on, funded: t.funded, spent: t.spent, pending: pend.n,
-    services: Object.values(S).map(sv => ({ key: sv.key, group: sv.group, label: sv.label, fields: sv.fields, kind: sv.kind, choices: choicesFor(sv), optional: sv.optional || [], agentOnly: !!P[sv.key].agent_only, locked: !!P[sv.key].agent_only && !req.user.agent, active: !!P[sv.key].active, price: priceView(P[sv.key], req.user), agentPrice: agentOf(P[sv.key]), indPrice: indOf(P[sv.key]),
+    services: Object.values(S).map(sv => ({ key: sv.key, group: sv.group, label: sv.label, fields: sv.fields, kind: sv.kind, choices: choicesFor(sv), optional: sv.optional || [], agentOnly: !!P[sv.key].agent_only, locked: !!P[sv.key].agent_only && !req.user.agent, active: !!P[sv.key].active, price: priceView(P[sv.key], req.user), agentPrice: (req.user.admin || req.user.agent) ? agentOf(P[sv.key]) : priceView(P[sv.key], req.user), indPrice: (req.user.admin || req.user.agent) ? indOf(P[sv.key]) : priceView(P[sv.key], req.user), // customers never receive the agent price
       ...(admin ? { sell: P[sv.key].price, sellInd: indOf(P[sv.key]), cost: P[sv.key].cost } : {}) })) });
 }));
 app.post('/api/profile', auth, wrap(async (req, res) => {

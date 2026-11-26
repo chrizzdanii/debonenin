@@ -62,7 +62,7 @@ test('agency request accepted WITHOUT a request id keeps the money and goes to r
   assert.equal((await call('admin', 'admin/req/refund', { id: row.id })).ok, false); assert.equal(await bal('cust'), b);
 });
 test('agency request with an id stays pending until a real result arrives', async () => {
-  const b = await bal('cust'); assert.equal((await call('cust', 'run', { service: 'ipe', f: { trackingID: 'T-OK' } })).ok, true); assert.equal(await bal('cust'), b - 1500);
+  const b = await bal('cust'); assert.equal((await call('cust', 'run', { service: 'ipe', f: { trackingID: 'T-OK' } })).ok, true); assert.equal(await bal('cust'), b - 1100);
   const id = (await dbq("SELECT id FROM reqs WHERE ref='TX9'"))[0].id;
   ipeStatus = { success: true, data: { status: 'pending', trackingID: 'T-OK' } }; assert.equal((await call('cust', 'req/check', { id })).status, 'pending'); assert.equal(lastStatusBody.trackingID, 'T-OK');
   ipeStatus = { success: true, data: { status: 'completed', newNIN: '12345678901', newTrackingID: 'ABC', transaction_id: 'x', amount_charged: '500.00' } };

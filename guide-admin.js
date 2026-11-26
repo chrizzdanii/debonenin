@@ -65,11 +65,12 @@ title: 'For the admin (owner)', sections: [
     ['Agents only', 'Switch on to lock one service completely so only verified agents can use it. Normally leave it off, so everyone can use everything.']]],
   ['steps', ['Change the numbers in the row.', 'Press **Save** at the end of the row. A message “saved” appears.', 'Customers see the new price at once.']],
   ['h', 'The automatic individual price'],
-  ['p', 'If the Individual price is 0, the site works it out from the agent price. Cheap services get the biggest gap, because that is where agents earn most and where a small gap would not encourage anyone to become an agent:'],
+  ['p', 'If the Individual price is 0, the site works it out from the agent price. Cheap services get the biggest gap, because that is where a small gap would not encourage anyone to become an agent:'],
   ['table', ['Agent price', 'Individual price is about', 'Example'], [
-    ['Up to ₦300', '1.8 times', '₦300 becomes ₦550'],
-    ['₦301 to ₦1,500', '1.5 times', '₦400 becomes ₦600, ₦1,500 becomes ₦2,250'],
-    ['Above ₦1,500', '1.4 times', '₦1,800 becomes ₦2,550']]],
+    ['Up to ₦300', '3.5 times', '₦300 becomes ₦1,050'],
+    ['₦301 to ₦600', '2.7 times', '₦450 becomes ₦1,250'],
+    ['₦601 to ₦1,500', '1.8 times', '₦1,100 becomes ₦2,000'],
+    ['Above ₦1,500', '1.4 times', '₦1,800 becomes ₦3,000']]],
   ['p', 'All results are rounded up to the next ₦50. You can type your own individual price for any service at any time. Your own prices are never overwritten.'],
   ['good', 'Why individuals must pay clearly more: if an individual pays almost the same as an agent, nobody has a reason to become a verified agent and your agents have nobody to out-price. Keep the gap wide on cheap, popular services.'],
   ['h', 'Sync provider prices'],
@@ -187,7 +188,7 @@ title: 'For the admin (owner)', sections: [
 /* ready answers for the assistant (admin only, same shape as public/guide-qa.js) */
 qa: [
 ['How do I set prices?', 'Open **Set Prices**. Each service has a provider price (what you pay), an agent price (never below provider) and an individual price (never below agent; 0 = automatic). Change the numbers and press **Save** at the end of the row. Customers see the new price at once.', 'ad-prices', 'change update edit price set margin profit'],
-['How is the automatic individual price worked out?', 'If the individual price is 0 the site multiplies the agent price: up to ₦300 about 1.8 times, ₦301 to ₦1,500 about 1.5 times, above ₦1,500 about 1.4 times, rounded up to the next ₦50 and at least ₦100 more. Prices you type yourself are never overwritten.', 'ad-prices', 'automatic auto individual price formula tier multiplier'],
+['How is the automatic individual price worked out?', 'If the individual price is 0 the site multiplies the agent price: up to ₦300 about 3.5 times, ₦301 to ₦600 about 2.7 times, ₦601 to ₦1,500 about 1.8 times, above ₦1,500 about 1.4 times, rounded up to the next ₦50 and at least ₦150 more. Prices you type yourself are never overwritten.', 'ad-prices', 'automatic auto individual price formula tier multiplier'],
 ['Why must individuals pay more than agents?', 'If an individual pays almost the same as an agent, nobody has a reason to become a verified agent. Keep the gap wide on cheap, popular services.', 'ad-prices', 'gap why higher individual price agents incentive'],
 ['What is Sync provider prices?', 'It copies the provider’s current prices for the look-up services (CAC, TIN, ID, vehicle, bank, meter). Slip and agency services have no price list from the provider, so type their provider prices by hand.', 'ad-prices', 'sync provider prices cost update copy'],
 ['What are other sites and NIMC charging? Are my prices right?', 'At the time the defaults were set: NIMC lists the NIN slip at ₦600 at a centre and ₦1,000 on its portal (May 2025 schedule). One public vendor lists a look-up at ₦350, a slip print at ₦150, verify and print together at ₦500, and a CAC search at ₦500. The default individual prices (about ₦300 to ₦550 for NIN slips) sit under NIMC and near the other vendors; agent prices are lower. Compare again every few months and edit any price in Set Prices.', 'ad-prices', 'market competitors compare prices nimc cheaper right correct price research benchmark'],
