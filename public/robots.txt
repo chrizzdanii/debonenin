@@ -2,4 +2,4 @@ User-agent: *
 Allow: /
 Disallow: /api/
 
-Sitemap: https://__SITE__/sitemap.xml
+Sitemap: https://deboneverify.vercel.app/sitemap.xml

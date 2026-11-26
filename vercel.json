@@ -15,18 +15,41 @@
     {
       "source": "/health",
       "destination": "/api/index.js"
+    },
+    {
+      "source": "/nin-verification",
+      "destination": "/nin-verification.html"
+    },
+    {
+      "source": "/nin-slip",
+      "destination": "/nin-slip.html"
+    },
+    {
+      "source": "/bvn-verification",
+      "destination": "/bvn-verification.html"
+    },
+    {
+      "source": "/ipe-clearance",
+      "destination": "/ipe-clearance.html"
+    },
+    {
+      "source": "/nin-validation",
+      "destination": "/nin-validation.html"
+    },
+    {
+      "source": "/nin-personalisation",
+      "destination": "/nin-personalisation.html"
+    },
+    {
+      "source": "/cac-tin-verification",
+      "destination": "/cac-tin-verification.html"
+    },
+    {
+      "source": "/vehicle-and-id-verification",
+      "destination": "/vehicle-and-id-verification.html"
     }
   ],
   "headers": [
-    {
-      "source": "/app(.html)?",
-      "headers": [
-        {
-          "key": "X-Robots-Tag",
-          "value": "noindex, nofollow"
-        }
-      ]
-    },
     {
       "source": "/((?!api/|health).*)",
       "headers": [
@@ -82,7 +105,5 @@
   ],
   "regions": [
     "lhr1"
-  ],
-  "cleanUrls": true,
-  "buildCommand": "node scripts/inject-site.js"
+  ]
 }

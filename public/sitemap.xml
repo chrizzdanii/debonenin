@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-<url><loc>https://__SITE__/</loc><lastmod>2026-11-26</lastmod><changefreq>weekly</changefreq><priority>1.0</priority></url>
-<url><loc>https://__SITE__/nin-verification</loc><lastmod>2026-11-26</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
-<url><loc>https://__SITE__/nin-slip</loc><lastmod>2026-11-26</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
-<url><loc>https://__SITE__/bvn-verification</loc><lastmod>2026-11-26</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
-<url><loc>https://__SITE__/ipe-clearance</loc><lastmod>2026-11-26</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
-<url><loc>https://__SITE__/nin-validation</loc><lastmod>2026-11-26</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
-<url><loc>https://__SITE__/nin-personalisation</loc><lastmod>2026-11-26</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
-<url><loc>https://__SITE__/cac-tin-verification</loc><lastmod>2026-11-26</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
-<url><loc>https://__SITE__/vehicle-and-id-verification</loc><lastmod>2026-11-26</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+<url><loc>https://deboneverify.vercel.app/</loc><lastmod>2026-11-26</lastmod><changefreq>weekly</changefreq><priority>1.0</priority></url>
+<url><loc>https://deboneverify.vercel.app/nin-verification</loc><lastmod>2026-11-26</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+<url><loc>https://deboneverify.vercel.app/nin-slip</loc><lastmod>2026-11-26</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+<url><loc>https://deboneverify.vercel.app/bvn-verification</loc><lastmod>2026-11-26</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+<url><loc>https://deboneverify.vercel.app/ipe-clearance</loc><lastmod>2026-11-26</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+<url><loc>https://deboneverify.vercel.app/nin-validation</loc><lastmod>2026-11-26</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+<url><loc>https://deboneverify.vercel.app/nin-personalisation</loc><lastmod>2026-11-26</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+<url><loc>https://deboneverify.vercel.app/cac-tin-verification</loc><lastmod>2026-11-26</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+<url><loc>https://deboneverify.vercel.app/vehicle-and-id-verification</loc><lastmod>2026-11-26</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
 </urlset>
