@@ -783,7 +783,7 @@ async function jobs() {
   return out;
 }
 
-if (!ON_VERCEL) app.use(express.static(path.join(__dirname, 'public'))); // on Vercel the files in /public are served by Vercel itself
+if (!ON_VERCEL) app.use(express.static(path.join(__dirname, 'public'), { extensions: ['html'] })); // on Vercel the files in /public are served by Vercel itself
 app.use((err, req, res, next) => {
   if (err.type === 'entity.parse.failed' || err.status === 400) return res.status(400).json({ ok: false, msg: 'Bad request.' });
   if (err.type === 'entity.too.large') return res.status(413).json({ ok: false, msg: 'That file is too large.' });

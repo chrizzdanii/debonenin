@@ -81,6 +81,7 @@ async function authView(){
   const sw=h('a',{href:'#',style:'color:var(--y);font-weight:700'},'Create one now'),q=h('span',{class:'mut'},"Don't have an account? ");
   if(pub.regMode==='closed'){sw.classList.add('hide');q.textContent='New registrations are closed right now. Please contact support.'}
   sw.onclick=e=>{e.preventDefault();reg=!reg;nmW.classList.toggle('hide',!reg);agW.classList.toggle('hide',!reg);pass.autocomplete=reg?'new-password':'current-password';pass.placeholder=reg?'At least 8 characters':'Password';title.textContent=reg?'Create account':'Welcome back';go.textContent=reg?'Create account':'Sign in to account';q.textContent=reg?'Already registered? ':"Don't have an account? ";sw.textContent=reg?'Sign in':'Create one now';msg.textContent=''};
+  if(/[?&]signup/.test(location.search)&&pub.regMode!=='closed')sw.onclick({preventDefault(){}});
   const code=h('input',{placeholder:'123456',inputmode:'numeric',autocomplete:'one-time-code',maxlength:7}),codeW=h('div',{class:'hide'},h('label',{class:'lbl'},'Authenticator code'),h('div',{class:'ig'},ic('shield'),code));
   const submit=async()=>{if(reg&&!agree.checked){msg.textContent='Please accept the Terms & Privacy to continue.';return}go.disabled=true;const r=await api(reg?'register':'login',{name:name.value,email:email.value,pass:pass.value,agree:agree.checked,code:code.value,phone:phone.value,invite:invite.value,website:trap.value});go.disabled=false;if(r.ok)boot();else{if(r.needCode){codeW.classList.remove('hide');code.focus()}msg.textContent=r.msg||'Something went wrong.'}};
   go.onclick=submit;pass.addEventListener('keydown',e=>{if(e.key==='Enter')submit()});code.addEventListener('keydown',e=>{if(e.key==='Enter')submit()});
@@ -597,7 +598,7 @@ async function boot(){
   ME=r.user;CF=r;buildPages(r.services);shell();
   if(!location.hash)location.hash='#/dashboard';render();maybeWelcome();
   const ref=new URLSearchParams(location.search).get('paid');
-  if(ref){history.replaceState(null,'','/'+location.hash);const x=await api('pay/verify',{ref});
+  if(ref){history.replaceState(null,'','/app.html'+location.hash);const x=await api('pay/verify',{ref});
     if(x.ok){setBal(x.bal);toast(x.status==='paid'?'Payment received. Your wallet has been credited.':x.status==='failed'?'That payment failed. You were not charged.':'Payment is still processing. Your wallet updates once it clears.')}}
 }
 boot();

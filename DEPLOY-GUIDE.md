@@ -1,3 +1,24 @@
+# v8 update (SEO, public pages, logo) - READ THIS FIRST
+No SQL is needed. Upload everything to GitHub as before.
+
+**What changed**
+- `/` is now a public, Google-friendly home page. The app moved to `/app.html` (Login / Register buttons go there). Old links such as `/?paid=...` and `/#/dashboard` are redirected automatically, so Paystack returns still work.
+- 8 service pages (NIN verification, NIN slip, BVN, IPE, NIN validation, personalisation, CAC/TIN, ID and vehicle) each with its own title, description, FAQ and structured data.
+- Logo set (`logo.svg`, `logo.png`, `favicon.ico`, `favicon.svg`, icons, `og-image.png`), `sitemap.xml`, `robots.txt`, `manifest.webmanifest`.
+
+**Do these 5 things after it is live (this is what makes Google show you)**
+1. Vercel -> Settings -> Environment Variables -> add `SITE_URL` = your real address, e.g. `https://verify.yourdomain.com`. Redeploy. (The build writes it into every canonical link, sitemap and logo link. A custom domain ranks better than `.vercel.app`.)
+2. Open `https://your-site/sitemap.xml` and `https://your-site/robots.txt`. Both must show your real address, not `__SITE__`.
+3. Go to Google Search Console (search.google.com/search-console), add your site, then Sitemaps -> submit `sitemap.xml`. Then URL Inspection -> paste your home page -> Request indexing. Do the same in Bing Webmaster Tools.
+4. Create a free Google Business Profile and share your link on WhatsApp, Facebook, X and Instagram. Real links back to your site are the biggest ranking factor.
+5. Add real customer reviews and your WhatsApp/phone/email in the footer when you have them (edit the pages, see below). Do not post fake reviews: Google penalises that.
+
+**Logo in search.** Google shows the site icon (`favicon.ico`) next to your name once it has crawled the home page. This usually takes days to a few weeks and Google decides when. Nobody can guarantee position 1.
+
+**Editing the pages.** Public pages are plain HTML files in `public/` (`index.html`, `nin-verification.html`, ...). Edit the text directly; keep the `<title>` under 60 characters and the description under 160.
+
+---
+
 # v7 update (assistant, search, prices)
 No SQL is needed. Upload the contents of the folder to GitHub as before and let Vercel redeploy. Then: (1) open the site and tap **Ask** at the bottom right; (2) open Guide & Tour and try the search box; (3) open Admin > Set Prices and look at the individual prices (untouched automatic ones moved to the new tiers; any price you typed yourself stayed).
 
