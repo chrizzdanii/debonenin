@@ -85,7 +85,7 @@ lk('meter_address', 'Bank & meter', 'Address by meter number', 550, { meter_numb
 /* ---------- core helpers ---------- */
 const getSet = async k => ((await q('SELECT v FROM settings WHERE k=?', k)) || {}).v;
 const setSet = (k, v) => run('INSERT INTO settings(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v', k, v);
-const cfgAll = async () => Object.fromEntries((await all("SELECT k,v FROM settings WHERE k NOT IN ('secret','provider_list')")).map(r => [r.k, r.v]));
+const cfgAll = async () => Object.fromEntries((await all("SELECT k,v FROM settings WHERE k NOT IN ('secret','provider_list','ea_plans')")).map(r => [r.k, r.v]));
 const ADMIN = (E.ADMIN_EMAIL || '').trim().toLowerCase();
 const isAdmin = e => !!ADMIN && String(e).toLowerCase() === ADMIN;
 const PASS_FEE = E.PASS_PAYSTACK_FEE !== '0';
@@ -127,7 +127,7 @@ async function vp(url, body) {
 }
 
 /* ---------- start-up: secret, prices, settings (runs once per server instance) ---------- */
-let SECRET, listAt = 0, providerBusyUntil = 0, initP = null;
+let VTU, SECRET, listAt = 0, providerBusyUntil = 0, initP = null;
 const initOnce = () => initP || (initP = init().catch(e => { initP = null; throw e; }));
 async function init() {
   let s = E.SESSION_SECRET || await getSet('secret');
@@ -301,7 +301,7 @@ app.get('/api/cron/jobs', wrap(async (req, res) => {
 app.use('/api', wrap(async (req, res, next) => { await initOnce(); next(); }));
 app.use('/api', limit('api', 600, 60e3));
 app.use('/api', (req, res, next) => { // blocks requests that come from other websites
-  if (req.method !== 'POST' || req.path === '/paystack/webhook') return next();
+  if (req.method !== 'POST' || ['/paystack/webhook', '/easyaccess/webhook'].includes(req.path)) return next();
   const o = req.get('origin');
   if (o) { let ok = false; try { ok = new URL(o).host === req.get('host'); } catch {} if (!ok) return res.status(403).json({ ok: false, msg: 'Blocked request.' }); }
   if (req.get('sec-fetch-site') === 'cross-site') return res.status(403).json({ ok: false, msg: 'Blocked request.' });
@@ -376,7 +376,7 @@ app.post('/api/me', auth, wrap(async (req, res) => {
     q("SELECT COALESCE(SUM(CASE WHEN status='credited' THEN amt END),0) funded, -COALESCE(SUM(CASE WHEN status!='credited' THEN amt END),0) spent FROM tx WHERE uid=?", req.user.id),
     q("SELECT COUNT(*) n FROM reqs WHERE uid=? AND status='pending'", req.user.id), cfgAll()]);
   const P = Object.fromEntries(rows.map(r => [r.k, r])), { id, name, email, bal: b, admin, phone } = req.user;
-  res.json({ ok: true, user: { id, name, email, bal: b, admin, phone, agentStatus: admin ? 'approved' : req.user.agent_status, agent: req.user.agent }, whatsapp: c.whatsapp || E.WHATSAPP || '', paystack: !!E.PAYSTACK_SECRET, paystackLive: paystackLive(c), bankReady: bankAccounts(c).length > 0, passFee: PASS_FEE, twofa: !!req.user.totp_on, funded: t.funded, spent: t.spent, pending: pend.n,
+  res.json({ ok: true, vtu: (await VTU.cfgOn()), user: { id, name, email, bal: b, admin, phone, agentStatus: admin ? 'approved' : req.user.agent_status, agent: req.user.agent }, whatsapp: c.whatsapp || E.WHATSAPP || '', paystack: !!E.PAYSTACK_SECRET, paystackLive: paystackLive(c), bankReady: bankAccounts(c).length > 0, passFee: PASS_FEE, twofa: !!req.user.totp_on, funded: t.funded, spent: t.spent, pending: pend.n,
     services: Object.values(S).map(sv => ({ key: sv.key, group: sv.group, label: sv.label, fields: sv.fields, kind: sv.kind, choices: choicesFor(sv), optional: sv.optional || [], agentOnly: !!P[sv.key].agent_only, locked: !!P[sv.key].agent_only && !req.user.agent, active: !!P[sv.key].active, price: priceView(P[sv.key], req.user), agentPrice: (req.user.admin || req.user.agent) ? agentOf(P[sv.key]) : priceView(P[sv.key], req.user), indPrice: (req.user.admin || req.user.agent) ? indOf(P[sv.key]) : priceView(P[sv.key], req.user), // customers never receive the agent price
       ...(admin ? { sell: P[sv.key].price, sellInd: indOf(P[sv.key]), cost: P[sv.key].cost } : {}) })) });
 }));
@@ -507,6 +507,7 @@ async function checkReq(row, force) {
   if (row.status === 'completed') return { status: 'completed', ...JSON.parse(row.result) };
   if (row.status === 'failed') return { status: 'failed', msg: 'This request failed and your money was returned.' };
   if (row.status === 'review' || row.ref === 'REVIEW') return { status: 'pending', msg: 'This request is being reviewed by our team. We will update you shortly.' };
+  if (VTU.isVtu(row.svc)) return VTU.check(row, force); // data, TV, electricity and exam-pin orders are checked with their own provider
   const sb = row.svc === 'ipe' ? { trackingID: row.input || row.ref }
     : row.svc === 'validation' ? (/^TKT/i.test(row.ref) ? { ticket_id: row.ref } : { transaction_id: row.ref })
     : row.ref === row.input ? { tracking_id: row.ref } : { transaction_id: row.ref };
@@ -593,7 +594,7 @@ app.post('/api/admin/stats', adm, wrap(async (req, res) => {
     n("SELECT COUNT(*) n FROM pay WHERE status='pending' AND at > now() - interval '2 day'"), n("SELECT COUNT(*) n FROM pay WHERE status='review'"),
     n("SELECT COUNT(*) n FROM reqs WHERE status='review'"), n("SELECT COUNT(*) n FROM reqs WHERE status='pending' AND at < now() - interval '3 day'"),
     n('SELECT COALESCE(SUM(amt),0) n FROM tx'), all('SELECT at,admin,action,detail FROM admin_log ORDER BY id DESC LIMIT 15'), n("SELECT COUNT(*) n FROM agent_apps WHERE status='pending'")]);
-  res.json({ ok: true, users, held, funded, revenue, pending, today, missing, paystack: !!E.PAYSTACK_SECRET, bankReady: bankAccounts(c).length > 0, transfersPending, payPending, payReview, reqReview, reqStuck, agentsPending, ledger: ledger + Number(c.ledger_base || (await getSet('ledger_base')) || 0), logs });
+  res.json({ ok: true, eaKey: VTU.ready(), users, held, funded, revenue, pending, today, missing, paystack: !!E.PAYSTACK_SECRET, bankReady: bankAccounts(c).length > 0, transfersPending, payPending, payReview, reqReview, reqStuck, agentsPending, ledger: ledger + Number(c.ledger_base || (await getSet('ledger_base')) || 0), logs });
 }));
 app.post('/api/admin/payments', adm, wrap(async (req, res) => res.json({ ok: true, rows: await all('SELECT p.ref,p.amt,COALESCE(p.charged,p.amt) charged,p.status,p.at,u.email FROM pay p LEFT JOIN users u ON u.id=p.uid ORDER BY p.at DESC NULLS LAST, p.ref DESC LIMIT 300') })));
 app.post('/api/admin/pay/recheck', adm, wrap(async (req, res) => {
@@ -617,6 +618,9 @@ app.post('/api/admin/provider-check', adm, wrap(async (req, res) => {
   const reachable = !(r.status === 'error' && !r.message && !r.response_code), b = r.balance ?? r.wallet_balance ?? (r.data && (r.data.balance ?? r.data.wallet_balance));
   res.json({ ok: true, reachable, status: r.status, code: r.response_code, message: String(r.message || '').slice(0, 120), balance: b != null && Number.isFinite(Number(b)) ? Number(b) : null });
 }));
+
+/* ---------- data, cable TV, electricity and exam pins (EasyAccess): see easyaccess.js ---------- */
+VTU = require('./easyaccess.js')({ app, auth, adm, wrap, limit, q, all, run, tx, charge, refund, bal, log, audit, getSet, setSet, lockKey, getLock, freeLock, normPhone, safeEq, checkedAgo, COOLDOWN, E });
 
 /* ---------- bank transfer funding: customer sends money to your account, uploads the receipt, you approve ---------- */
 const tView = (t, banks) => ({ ref: t.ref, amount: t.amt, status: t.status, reason: t.reason || '', proofName: t.proof_name || '', at: t.at, upd: t.upd, credited: t.credited, banks });
@@ -792,6 +796,7 @@ async function jobs() {
     if (E.PAYSTACK_SECRET) for (const p of await all("SELECT ref FROM pay WHERE status='pending' AND (at IS NULL OR (at > now() - interval '2 day' AND at < now() - interval '2 minute')) LIMIT 30")) { await settle(p.ref); out.payments++; }
     for (const r of await all("SELECT * FROM reqs WHERE status='pending' AND at < now() - interval '1 minute' AND (checked IS NULL OR checked < now() - interval '10 minute') ORDER BY COALESCE(checked, at) LIMIT 4")) { if (Date.now() < providerBusyUntil) break; await checkReq(r, true); out.requests++; }
     if (Date.now() - listAt > 24 * 36e5 && Date.now() >= providerBusyUntil) await refreshList().catch(() => {});
+    if (VTU.ready()) await VTU.ensurePlans().catch(() => {});
     await run("DELETE FROM results WHERE at < now() - interval '30 day'");
     await run("UPDATE transfers SET proof=NULL WHERE proof IS NOT NULL AND status IN ('approved','rejected','cancelled') AND upd < now() - interval '90 day'");
     await run("UPDATE reqs SET result=? WHERE status='completed' AND at < now() - interval '7 day' AND result NOT LIKE '%has expired%'", '{"data":{"note":"This result has expired and was deleted for your privacy."},"pdf":null}');

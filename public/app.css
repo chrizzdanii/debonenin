@@ -221,3 +221,13 @@ mark.gm{background:#fde68a;color:#1b1530;border-radius:3px;padding:0 1px}[data-t
 .gflash{animation:gflash 2.2s ease-out}@keyframes gflash{0%,40%{box-shadow:0 0 0 3px var(--y)}100%{box-shadow:0 0 0 0 transparent}}
 .gsr{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:0 0 14px;padding:12px 14px;border:1px dashed var(--y);border-radius:14px;background:var(--yt)}.gsr b{flex:1;min-width:180px}
 @media(prefers-reduced-motion:reduce){.typing i,.gflash{animation:none}}
+
+/* data, cable TV, electricity and exam pins */
+.pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:10px;max-height:340px;overflow:auto;padding:2px}
+.plan{display:flex;flex-direction:column;gap:2px;text-align:left;background:var(--inp);border:1px solid var(--line);border-radius:12px;padding:10px 12px;color:var(--txt)}
+.plan b{font-size:13px}.plan small{color:var(--mut);font-size:11.5px}.plan span{margin-top:4px;color:var(--ok);font-weight:800;font-family:"JetBrains Mono",ui-monospace,Consolas,monospace;font-size:13px}
+.plan:hover{border-color:var(--y)}.plan.on{border-color:var(--y);background:var(--yt);box-shadow:0 0 0 2px var(--y) inset}
+.vinfo{margin-top:12px;padding:12px 14px;border-radius:12px;background:var(--okt);border:1px solid var(--ok);font-size:13px}.vinfo b{display:block;font-size:15px;color:var(--ok)}
+.tokb{background:var(--card2);border:1px dashed var(--y);border-radius:14px;padding:16px;margin:0 0 18px;text-align:center}
+.tokb small{display:block;color:var(--mut);font-weight:700;font-size:11.5px;letter-spacing:.06em;margin-bottom:8px}
+.tokb b{display:block;font-family:"JetBrains Mono",ui-monospace,Consolas,monospace;font-size:20px;letter-spacing:.04em;word-break:break-all;margin-bottom:10px}.tokb b.pinl{font-size:14px;margin-bottom:6px}

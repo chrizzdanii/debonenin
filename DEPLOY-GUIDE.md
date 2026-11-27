@@ -213,6 +213,8 @@ Skip this if the website is brand new. Otherwise, on your computer:
 |---|---|
 | `DATABASE_URL` | the string from Step 5 |
 | `VP_API_KEY` | your **new** verifyplatform key |
+| `EA_API_KEY` | your EasyAccess API token (data, TV, electricity, exam pins). Copy it from your EasyAccess dashboard. **Never paste it into the code or GitHub.** |
+| `EA_WEBHOOK_KEY` | optional but recommended: any long random value. Then save `https://your-site/api/easyaccess/webhook?key=THAT_VALUE` as your webhook URL in EasyAccess |
 | `PAYSTACK_SECRET` | `sk_test_...` for now |
 | `PAYSTACK_ENABLED` | `1` |
 | `ADMIN_EMAIL` | your admin email |

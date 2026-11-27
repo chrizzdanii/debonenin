@@ -30,7 +30,7 @@ badge:'<rect x="6" y="3" width="12" height="18" rx="2"/><circle cx="12" cy="10" 
 demo:'<path d="M4 8V5h3M20 8V5h-3M4 16v3h3M20 16v3h-3"/><circle cx="12" cy="10" r="2.5"/><path d="M7.5 17c1-3 8-3 9 0"/>',
 receipt:'<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/>',building:'<rect x="5" y="3" width="14" height="18" rx="1"/><path d="M9 7h2M13 7h2M9 11h2M13 11h2M9 15h2M13 15h2"/>',
 chart:'<path d="M4 20V4M4 20h16M8 16v-5M12 16V8M16 16v-8"/>',arrow:'<path d="M5 12h14M13 6l6 6-6 6"/>',
-down:'<path d="M12 4v12M6 12l6 6 6-6"/>',card:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/>'};
+down:'<path d="M12 4v12M6 12l6 6 6-6"/>',card:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/>',tv:'<rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8M12 17v4"/>',bolt:'<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>',cap:'<path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11v5c3 2 9 2 12 0v-5"/>'};
 const logoEl=()=>{const d=h('div',{class:'logo'},'D'),im=h('img',{src:'/logo.png',alt:'DEBONE'});im.onload=()=>d.replaceChildren(im);return d};
 try{document.documentElement.dataset.theme=localStorage.getItem('theme')||'light'}catch{}
 const flipTheme=()=>{const t=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=t;try{localStorage.setItem('theme',t)}catch{}};
@@ -115,8 +115,9 @@ function buildPages(list){
 }
 const NAV=()=>[
   ['MAIN PORTAL',[['dashboard','Dashboard','dash','Live']]],
-  ...(ME.admin?[['ADMIN',[['a/overview','Admin Overview','chart'],['a/prices','Set Prices','tag'],['a/transfers','Bank Transfers','bank'],['a/payments','Paystack Payments','card'],['a/requests','Agency Requests','file'],['a/results','Saved Results','file'],['a/agents','Agents & Invites','badge'],['a/users','Users','users'],['a/settings','Support Settings','gear']]]]:[]),
+  ...(ME.admin?[['ADMIN',[['a/overview','Admin Overview','chart'],['a/prices','Set Prices','tag'],['a/transfers','Bank Transfers','bank'],['a/payments','Paystack Payments','card'],['a/vtu','Data & Bills Pricing','tag'],['a/requests','Agency Requests','file'],['a/results','Saved Results','file'],['a/agents','Agents & Invites','badge'],['a/users','Users','users'],['a/settings','Support Settings','gear']]]]:[]),
   ['FINANCE & WALLET',[['wallet','My Wallet','wallet'],['deposit','Deposit / Fund','plus'],['transactions','Transactions','swap']]],
+  ...(VTU.navItems().length?[['DATA, TV & BILLS',VTU.navItems()]]:[]),
   ['IDENTITY & VERIFICATIONS',[['nin','NIN Verification','finger'],['phone','NIN via Phone','phone'],['demo','NIN Demographic','demo'],['bvn','BVN Verification','shieldck'],['more','More Verifications','idcard']]],
   ['NIN SERVICES',[['ipe','IPE Clearance','shield'],['personalization','NIN Personalisation','badge'],['validation','NIN Validation','circle'],['requests','My Requests','file']]],
   ['RESULTS & HELP',[['results','My Results','file'],['guide','Guide & Tour','book']]],
@@ -162,7 +163,7 @@ function render(){
   const p=PAGES.find(x=>x.id===v);
   if(p)return pageView(m,p);
   if(v.startsWith('transfer/'))return transferPage(m,decodeURIComponent(v.slice(9)));
-  const map={guide:guidePage,results:resultsPage,agent:agentPage,'a/agents':aAgents,dashboard,wallet,deposit,transactions,requests,profile,more,'a/transfers':aTransfers,'a/overview':aOverview,'a/prices':aPrices,'a/users':aUsers,'a/results':aResults,'a/payments':aPayments,'a/requests':aRequests,'a/settings':aSettings};
+  const map={data:VTU.data,tv:VTU.tv,electricity:VTU.electricity,exam:VTU.exam,'a/vtu':VTU.admin,guide:guidePage,results:resultsPage,agent:agentPage,'a/agents':aAgents,dashboard,wallet,deposit,transactions,requests,profile,more,'a/transfers':aTransfers,'a/overview':aOverview,'a/prices':aPrices,'a/users':aUsers,'a/results':aResults,'a/payments':aPayments,'a/requests':aRequests,'a/settings':aSettings};
   if(v.startsWith('a/')&&!ME.admin)return location.hash='#/dashboard';
   (map[v]||dashboard)(m);
 }
@@ -179,9 +180,10 @@ function hero(){
 const tile=(t,i,hot,href,n,lock)=>h('a',{class:'tile',href},h('div',{class:'tc c'+(n%5)},ic(i,24),hot&&!lock?h('i',{class:'hot'},'HOT'):null,lock?h('i',{class:'hot lk'},'AGENTS'):null),h('span',{},t));
 function dashboard(m){
   const box=h('div',{class:'tiles'});
-  const tabs=['All Services','Identity','NIN Agency','Business & ID',...(ME.admin?['Admin']:[])];
-  const ADM=[['a/overview','Admin Overview','chart'],['a/prices','Set Prices','tag'],['a/transfers','Bank Transfers','bank'],['a/payments','Paystack Payments','card'],['a/requests','Agency Requests','file'],['a/results','Saved Results','file'],['a/agents','Agents & Invites','badge'],['a/users','Users','users'],['a/settings','Support Settings','gear']];
+  const tabs=['All Services','Data & Bills','Identity','NIN Agency','Business & ID',...(ME.admin?['Admin']:[])];
+  const ADM=[['a/overview','Admin Overview','chart'],['a/prices','Set Prices','tag'],['a/vtu','Data & Bills Pricing','tag'],['a/transfers','Bank Transfers','bank'],['a/payments','Paystack Payments','card'],['a/requests','Agency Requests','file'],['a/results','Saved Results','file'],['a/agents','Agents & Invites','badge'],['a/users','Users','users'],['a/settings','Support Settings','gear']];
   const draw=()=>{box.replaceChildren();let n=0;const t=tileQ.toLowerCase();
+    if(tabSel!=='Admin')VTU.tiles().filter(p=>(tabSel==='All Services'||p.tab===tabSel)&&p.t.toLowerCase().includes(t)).forEach(p=>box.append(tile(p.t,p.i,p.hot,'#/'+p.id,n++)));
     if(tabSel!=='Admin')PAGES.filter(p=>(tabSel==='All Services'||p.tab===tabSel)&&p.t.toLowerCase().includes(t)).forEach(p=>box.append(tile(p.t,p.i,p.hot,'#/'+p.id,n++,p.keys.every(k=>SV[k].locked))));
     if(tabSel==='All Services'&&'history fund wallet'.includes(t)){box.append(tile('Fund Wallet','plus',1,'#/deposit',n++),tile('History','clock',0,'#/transactions',n++))}
     if(ME.admin&&(tabSel==='Admin'||tabSel==='All Services'))ADM.filter(a=>a[1].toLowerCase().includes(t)).forEach(a=>box.append(tile(a[1],a[2],0,'#/'+a[0],n++)));
@@ -209,6 +211,7 @@ function fmtVal(v,lab){ // nested records are shown as tidy labelled lines, neve
   return String(v);
 }
 function resultCard(x,pageId){
+  if(x.data&&x.data['Amount paid']!=null&&!x.pdf&&!x.photo)return VTU.card(x.data); // data, TV, electricity and exam-pin receipts
   const d=x.data||{},LBL={nin:'NIN',rc_number:'RC number',tin:'TIN',bvn:'BVN',vin:'VIN',lga:'LGA',birthdate:'Date of birth',dob:'Date of birth',telephoneno:'Phone number',birthlga:'Birth LGA',birthstate:'Birth state',birthcountry:'Birth country',residence_state:'State of residence',residence_lga:'LGA of residence',residence_town:'Town',residence_adressline1:'Address',trackingid:'Tracking ID',newnin:'New NIN',newtrackingid:'New tracking ID'};
   const lab=k=>LBL[k.toLowerCase()]||k.replace(/_/g,' ').replace(/([a-z])([A-Z])/g,'$1 $2').replace(/^./,c=>c.toUpperCase());
   const NAME=['firstname','first_name','middlename','middle_name','surname','last_name','lastname'],nm=['firstname','first_name','middlename','middle_name','surname','last_name','lastname'].map(k=>d[k]).filter(Boolean).join(' ');
@@ -348,9 +351,9 @@ async function transactions(m){
   c.append(t);
 }
 async function requests(m){
-  m.append(crumb(['Dashboard'],['NIN Services','#/dashboard'],['My Requests']),titleRow('file','My Requests','IPE · Validation · Personalisation'));
+  m.append(crumb(['Dashboard'],['NIN Services','#/dashboard'],['My Requests']),titleRow('file','My Requests','IPE · Validation · Personalisation · Data & bills'));
   const c=h('div',{class:'cd pad ov'}),out=h('div',{class:'cd',style:'margin-top:20px'});out.classList.add('hide');m.append(c,out);
-  const r=await api('reqs');if(!r.rows||!r.rows.length)return c.append(emptyBox('file','No requests yet','IPE clearance, NIN validation and personalisation requests appear here after you submit them.'));
+  const r=await api('reqs');if(!r.rows||!r.rows.length)return c.append(emptyBox('file','No requests yet','IPE clearance, NIN validation, personalisation and any data, TV, electricity or exam-pin order that is still being confirmed appear here.'));
   const t=h('table',{class:'tbl'},h('tr',{},['Service','Status','Date',''].map(x=>h('th',{},x))));
   r.rows.forEach(x=>{const st=h('span',{class:'badge '+(x.status==='completed'?'':x.status==='failed'?'r':'y')},x.status),b=h('button',{class:'btn out sm'},'Check status');
     b.onclick=async()=>{b.disabled=true;const y=await api('req/check',{id:x.id});b.disabled=false;if(y.bal!=null)setBal(y.bal);out.classList.remove('hide');out.replaceChildren(h('div',{class:'ch r'},x.label));
@@ -371,6 +374,7 @@ async function aOverview(m){
   const st=(l,v,s)=>h('div',{class:'cd stat'},h('small',{},l),h('b',{},v),s?h('span',{class:'mut',style:'font-size:12px'},s):null);
   m.append(h('div',{class:'sg'},st('REGISTERED USERS',r.users),st('WALLET BALANCES HELD',N(r.held),'All users'),st('TOTAL FUNDED',N(r.funded),'Bank transfer + Paystack'),st('CUSTOMER SPENDING',N(r.revenue),'Net of refunds'),st('PENDING REQUESTS',r.pending),st('PAID ACTIONS TODAY',r.today)));
   const warn=[];if(!r.bankReady&&!r.paystack)warn.push('No payment method is set up. Open Bank Transfers and add your bank details so customers can fund wallets.');if(r.transfersPending)warn.push(r.transfersPending+' bank transfer(s) are waiting for your approval. Open Bank Transfers.');if(r.missing)warn.push(r.missing+' services have no provider price yet. Open Set Prices.');
+  if(r.eaKey===false)warn.push('Data, cable TV, electricity and exam pins are not connected yet. Add EA_API_KEY in your Vercel Environment Variables and redeploy (see the README).');
   if(r.agentsPending)warn.push(r.agentsPending+' agent application(s) are waiting for your decision. Open Agents & Invites.');
   if(r.payPending)warn.push(r.payPending+' payment(s) are waiting for Paystack confirmation. Open Payments and press Re-check.');
   if(r.payReview)warn.push(r.payReview+' payment(s) need review (amount did not match). Check Paystack and refund if needed.');
@@ -382,7 +386,7 @@ async function aOverview(m){
   pc.onclick=async()=>{pc.disabled=true;const x=await api('admin/provider-check');pc.disabled=false;
     if(!x.reachable)return modal('Provider connection',h('p',{style:'color:var(--er)'},'No reply from verifyplatform.'),h('p',{class:'mut',style:'margin-top:8px'},'Check VP_API_KEY in your .env file and your internet connection, then restart the server.'));
     modal('Provider connection',h('p',{style:'color:var(--ok)'},'verifyplatform replied.'),h('p',{class:'mut',style:'margin-top:8px'},'Status: '+(x.status||'-')+' · Code: '+(x.code||'-')+(x.message?' · '+x.message:'')),x.balance!=null?h('p',{style:'margin-top:8px'},'Provider wallet balance: ',h('b',{},N(x.balance))):h('p',{class:'mut',style:'margin-top:8px'},'Balance was not included in the reply. Check it in your verifyplatform dashboard.'))};
-  m.append(h('div',{style:'display:flex;gap:12px;flex-wrap:wrap;margin-bottom:22px'},h('a',{class:'btn',href:'#/a/prices'},ic('tag',16),'Set prices'),h('a',{class:'btn out',href:'#/a/payments'},'Payments'),h('a',{class:'btn out',href:'#/a/requests'},'Agency requests'),h('a',{class:'btn out',href:'#/a/users'},'Users'),pc));
+  m.append(h('div',{style:'display:flex;gap:12px;flex-wrap:wrap;margin-bottom:22px'},h('a',{class:'btn',href:'#/a/prices'},ic('tag',16),'Set prices'),h('a',{class:'btn out',href:'#/a/payments'},'Payments'),h('a',{class:'btn out',href:'#/a/vtu'},'Data & bills'),h('a',{class:'btn out',href:'#/a/requests'},'Agency requests'),h('a',{class:'btn out',href:'#/a/users'},'Users'),pc));
   const c=h('div',{class:'cd pad ov'},h('h3',{style:'margin:0 0 10px'},'Recent admin activity & alerts'));
   if(!r.logs.length)c.append(h('p',{class:'mut'},'Nothing yet.'));else{const t=h('table',{class:'tbl'},h('tr',{},['When','Who','Action','Detail'].map(x=>h('th',{},x))));r.logs.forEach(l=>t.append(h('tr',{},h('td',{class:'mut'},fmt(l.at)),h('td',{},l.admin),h('td',{},h('span',{class:'badge y'},l.action)),h('td',{class:'mut'},l.detail))));c.append(t)}
   m.append(c);
@@ -524,15 +528,16 @@ async function aPayments(m){
 async function aRequests(m){
   m.append(crumb(['Dashboard'],['Admin'],['Agency Requests']),titleRow('file','Agency Requests','Admin'));
   const c=h('div',{class:'cd pad ov'});
-  m.append(h('p',{class:'mut',style:'margin:-8px 0 16px;max-width:760px'},'IPE, validation and personalisation requests. If one is stuck or needs review, check it with the provider or refund the customer.'),c);
+  m.append(h('p',{class:'mut',style:'margin:-8px 0 16px;max-width:760px'},'IPE, validation and personalisation requests. Data, TV, electricity and exam-pin orders appear here too when the provider has not given a final answer. If one needs review, check it with the provider, then press Mark delivered (customer keeps the charge) or Refund customer.'),c);
   const r=await api('admin/requests');if(!r.rows||!r.rows.length)return c.append(emptyBox('file','No requests yet','Agency requests from customers appear here.'));
   const t=h('table',{class:'tbl'},h('tr',{},['Date','Customer','Service','Fee','Status',''].map(x=>h('th',{},x))));
   r.rows.forEach(x=>{const st=h('span',{class:'badge '+(x.status==='completed'?'':x.status==='failed'?'r':'y')},x.status);
-    const chk=h('button',{class:'btn out sm'},'Check'),rf=h('button',{class:'btn out sm'},'Refund customer');
+    const chk=h('button',{class:'btn out sm'},'Check'),rf=h('button',{class:'btn out sm'},'Refund customer'),dn=h('button',{class:'btn out sm'},'Mark delivered');
+    dn.onclick=async()=>{const note=prompt('Note shown to the customer (optional)','Delivered.');if(note===null)return;const y=await api('admin/req/complete',{id:x.id,note});toast(y.msg);if(y.ok)render()};
     chk.onclick=async()=>{chk.disabled=true;const y=await api('admin/req/check',{id:x.id});chk.disabled=false;toast(y.status==='completed'?'Completed.':y.msg||'Checked.');if(y.status==='completed'||y.status==='failed')render()};
     rf.onclick=async()=>{if(!confirm('Refund '+N(x.price)+' to '+x.email+' and close this request?'))return;const y=await api('admin/req/refund',{id:x.id});toast(y.msg);if(y.ok)render()};
     const open=x.status==='pending'||x.status==='review';
-    t.append(h('tr',{},h('td',{class:'mut'},fmt(x.at)),h('td',{},x.email||'-'),h('td',{},x.label),h('td',{},N(x.price)),h('td',{},st),h('td',{style:'display:flex;gap:8px'},open?[chk,rf]:'')))});
+    t.append(h('tr',{},h('td',{class:'mut'},fmt(x.at)),h('td',{},x.email||'-'),h('td',{},x.label),h('td',{},N(x.price)),h('td',{},st),h('td',{style:'display:flex;gap:8px'},open?[chk,dn,rf]:'')))});
   c.append(t);
 }
 

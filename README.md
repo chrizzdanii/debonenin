@@ -58,3 +58,22 @@ Without `TEST_DATABASE_URL` the database tests are skipped. The tests run the we
 - **Guide search:** ranked, forgives spelling mistakes, highlights matches, and has an "Ask the assistant" button.
 - **Prices:** automatic individual tiers are now x1.8 (agent price up to N300), x1.5 (N301 to N1,500), x1.4 (above). Migration `ind_price_v3` moves only untouched automatic prices; prices an admin typed are never changed.
 - Tests: `tests/chat.test.js` checks 97 real questions, every ready answer, every chapter title and every quick-fix row.
+
+
+## Data, TV, electricity and exam pins (EasyAccess)
+
+Customers buy data, cable TV, electricity tokens and exam pins from their wallet. The code is in `easyaccess.js` (server) and `public/vtu.js` (pages).
+
+| Variable | Needed | What it does |
+|---|---|---|
+| `EA_API_KEY` | yes | Your EasyAccess token. Without it the pages open but every order says "temporarily unavailable" and the admin overview shows a warning. |
+| `EA_WEBHOOK_KEY` | recommended | Secret added to the webhook URL as `?key=`. |
+| `EA_EXTRA_DISCOS` | for more electricity companies | The documentation lists only EKEDC=1, IKEDC=2, PHEDC=3 and KEDCO=4 (then "etc."). Add the others from EasyAccess's Plan IDs page, e.g. `5:BEDC - Benin,6:AEDC - Abuja`. |
+| `EA_MODE` | optional | `test` uses EasyAccess's test endpoints (no real orders). Default is live. |
+| `EA_PRICE_GUARD` | optional | `0` stops sending `max_amount_payable`. Leave it on unless EasyAccess rejects normal orders for that reason. |
+
+**Prices:** open **Admin → Data & Bills Pricing**. Provider cost comes from EasyAccess; you set your profit (percent + fixed naira) for agents and for customers. The defaults are only a starting point, so review them before going live.
+
+**Safety rules built in:** the card or meter is verified before any money is taken; a clear failure refunds at once; a timeout or server error is *not* treated as failure (the order is held under Agency Requests so nobody gets free data); the webhook is never trusted without asking EasyAccess what really happened.
+
+Tests: `tests/vtu.test.js` (needs `TEST_DATABASE_URL`, like the others).
