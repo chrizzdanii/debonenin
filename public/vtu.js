@@ -12,7 +12,7 @@ window.VTU = (() => {
     if (!r.ok) { box.append(h('p', {}, r.msg || 'Could not load this page.')); return null; }
     if (r.bal != null) setBal(r.bal);
     if (!r.on[key]) { box.append(h('div', { class: 'cd pad', style: 'max-width:620px' }, emptyBox('clock', 'Switched off for now', 'This service is not available right now. Please check back later.'))); return null; }
-    if (!r[key] || !r[key].length && Array.isArray(r[key])) { box.append(h('div', { class: 'cd pad', style: 'max-width:620px' }, emptyBox('clock', 'Not available right now', 'Prices are being updated. Please try again in a few minutes.'))); return null; }
+    if (!r[key] || !r[key].length && Array.isArray(r[key])) { box.append(h('div', { class: 'cd pad', style: 'max-width:620px' }, emptyBox('clock', 'Not available right now', 'Prices are being updated. Please try again in a few minutes.'), r.diag ? h('p', { style: 'color:var(--y);padding:0 24px 20px;font-size:13px' }, 'Admin only: ' + r.diag) : null)); return null; }
     box.remove(); return r;
   };
   const put = (el, ...kids) => el.replaceChildren(...kids.flat(9).filter(x => x != null && x !== false)); // replaceChildren does not flatten arrays like h() does
@@ -122,7 +122,7 @@ window.VTU = (() => {
     rf.onclick = async () => { rf.disabled = true; const x = await api('admin/vtu/refresh'); rf.disabled = false; toast(x.msg); if (x.ok) { m.replaceChildren(); admin(m); } };
     const hook = location.origin + '/api/easyaccess/webhook' + (r.webhookKey ? '?key=YOUR_EA_WEBHOOK_KEY' : '');
     st.append(h('div', {}, h('div', { style: 'display:flex;gap:10px;align-items:center;flex-wrap:wrap' }, h('span', { class: 'badge ' + (r.key ? '' : 'r') }, r.key ? 'API key connected' : 'EA_API_KEY missing'), h('span', { class: 'badge ' + (r.mode === 'live' ? '' : 'y') }, r.mode === 'live' ? 'LIVE orders' : 'TEST mode: no real orders'), h('span', { class: 'mut' }, r.plansAt ? 'Plans updated ' + fmt(new Date(r.plansAt).toISOString()) : 'Plans not loaded yet'), h('div', { class: 'sp', style: 'margin-left:auto;display:flex;gap:8px' }, bb, rf)),
-      h('div', { style: 'margin-top:10px' }, balOut), r.key ? null : h('p', { style: 'color:var(--y);margin-top:10px' }, 'Add EA_API_KEY in your Vercel Environment Variables (never in the code), then redeploy. See the README.'),
+      h('div', { style: 'margin-top:10px' }, balOut), r.diag ? h('p', { style: 'color:var(--er);margin-top:10px;font-size:13px;word-break:break-word' }, 'Last plan refresh problem: ' + r.diag) : null, r.key ? null : h('p', { style: 'color:var(--y);margin-top:10px' }, 'Add EA_API_KEY in your Vercel Environment Variables (never in the code), then redeploy. See the README.'),
       h('p', { class: 'mut', style: 'margin-top:12px;font-size:12.5px' }, 'Webhook URL to save in the provider dashboard: ', h('b', { style: 'word-break:break-all' }, hook), ' ', copyBtn(hook, 'Copy')),
       r.guard ? null : h('p', { class: 'mut', style: 'font-size:12.5px' }, 'Price guard is OFF (EA_PRICE_GUARD=0).')));
     m.append(st);

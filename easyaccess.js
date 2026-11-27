@@ -32,10 +32,10 @@ module.exports = function install(c) {
     if (!E.EA_API_KEY) return { http: 0, json: null, nokey: true };
     const url = `${EA_BASE}/${live || EA_MODE === 'live' ? 'live' : 'test'}/v1/${path}`; // plans and balance exist only on the live side
     try {
-      const r = await fetch(url, { method, headers: { Authorization: 'Bearer ' + E.EA_API_KEY.trim(), 'Cache-Control': 'no-cache', Accept: 'application/json', ...(method === 'GET' ? {} : { 'Content-Type': 'application/json' }) },
+      const r = await fetch(url, { method, headers: { Authorization: 'Bearer ' + E.EA_API_KEY.trim(), 'Cache-Control': 'no-cache', Accept: 'application/json', 'User-Agent': 'DeboneHub/1.0 (+' + (E.BASE_URL || 'https://example.com') + ')', ...(method === 'GET' ? {} : { 'Content-Type': 'application/json' }) },
         body: method === 'GET' ? undefined : JSON.stringify(body || {}), signal: AbortSignal.timeout(timeout) });
-      let json = null; try { json = await r.json(); } catch {}
-      return { http: r.status, json };
+      const text = await r.text().catch(() => ''); let json = null; try { json = JSON.parse(text); } catch {}
+      return { http: r.status, json, text: text.slice(0, 200) };
     } catch { return { http: 0, json: null }; }
   }
   const OKS = new Set(['success', 'successful']), BAD = new Set(['failed', 'failure', 'error']);
@@ -80,8 +80,9 @@ module.exports = function install(c) {
     if (plansP) return plansP;
     plansP = (async () => {
       const types = allTypes(), next = { ...PLANS.p }, bad = [];
-      for (let i = 0; i < types.length; i += 5) await Promise.all(types.slice(i, i + 5).map(async t => { const r = await ea('get-plans?product_type=' + t, { method: 'GET', live: true, timeout: 20000 }), list = parsePlans(r.json); if (list.length) next[t] = list; else bad.push(t + ' (' + (r.nokey ? 'no key' : !r.http ? 'no reply' : 'HTTP ' + r.http) + (r.json && r.json.message ? ': ' + String(r.json.message).slice(0, 60) : r.json ? ': reply had no readable plans' : '') + ')'); }));
+      for (let i = 0; i < types.length; i += 5) await Promise.all(types.slice(i, i + 5).map(async t => { const r = await ea('get-plans?product_type=' + t, { method: 'GET', live: true, timeout: 20000 }), list = parsePlans(r.json); if (list.length) next[t] = list; else bad.push(t + ' (' + (r.nokey ? 'EA_API_KEY not set' : !r.http ? 'no reply from EasyAccess' : 'HTTP ' + r.http) + (r.json && r.json.message ? ': ' + String(r.json.message).slice(0, 60) : r.json ? ': reply had no readable plans: ' + JSON.stringify(r.json).slice(0, 80) : r.text ? ': not JSON: ' + r.text.replace(/\s+/g, ' ').slice(0, 80) : '') + ')'); }));
       if (bad.length < types.length) { PLANS = { at: Date.now(), p: next }; await setSet('ea_plans', JSON.stringify(PLANS)); }
+      await setSet('ea_plans_err', bad.length ? bad.join('; ').slice(0, 900) : '');
       return { ok: types.length - bad.length, total: types.length, bad };
     })().finally(() => { plansP = null; });
     return plansP;
@@ -121,6 +122,7 @@ module.exports = function install(c) {
     const [g] = await Promise.all([cfg(), ensurePlans()]), u = req.user;
     const pl = (arr, m) => arr.map(p => ({ id: p.id, name: p.name, validity: p.validity, price: priceFor(p.price, m, u) }));
     const out = { ok: true, ready: !!E.EA_API_KEY, on: g.on, bal: u.bal };
+    if (u.admin) out.diag = E.EA_API_KEY ? (await getSet('ea_plans_err')) || '' : 'EA_API_KEY is not set in your environment.'; // only the admin is told why plans are missing
     if (g.on.data) out.data = Object.entries(DATA).map(([n, types]) => ({ code: +n, name: NETS[n], types: Object.entries(types).map(([k, t]) => ({ key: k, label: TYPE_LABEL[k], plans: pl(plansOf(t), g.m['data_' + NETS[n].toLowerCase()]) })).filter(t => t.plans.length) })).filter(n => n.types.length);
     if (g.on.tv) out.tv = Object.entries(TV).map(([n, [name, t]]) => ({ code: +n, name, plans: pl(plansOf(t), g.m['tv_' + name.toLowerCase()]) })).filter(t => t.plans.length);
     if (g.on.electricity) out.electricity = { discos: discos(), min: 1000, max: 500000 };
@@ -278,7 +280,7 @@ module.exports = function install(c) {
     else if (s === 'tv') n[g] = plansOf(TV[Object.keys(TV).find(k => 'tv_' + TV[k][0].toLowerCase() === g)][1]).length;
     else if (s === 'exam') { const p = plansOf(EXAM[Object.keys(EXAM).find(k => 'exam_' + EXAM[k][0].toLowerCase() === g)][1])[0]; n[g] = p ? p.price : 0; } } return n; };
   app.post('/api/admin/vtu/get', adm, wrap(async (req, res) => { const [g] = await Promise.all([cfg(), ensurePlans()]);
-    res.json({ ok: true, key: !!E.EA_API_KEY, mode: EA_MODE, guard: GUARD, webhookKey: !!E.EA_WEBHOOK_KEY, on: g.on, groups: GROUPS.map(([k, label, svc]) => ({ key: k, label, svc, ...g.m[k] })), counts: counts(), plansAt: PLANS.at || 0, discos: discos(), extraDiscos: DISCOS_BASE.length < discos().length }); }));
+    res.json({ ok: true, diag: (await getSet('ea_plans_err')) || '', key: !!E.EA_API_KEY, mode: EA_MODE, guard: GUARD, webhookKey: !!E.EA_WEBHOOK_KEY, on: g.on, groups: GROUPS.map(([k, label, svc]) => ({ key: k, label, svc, ...g.m[k] })), counts: counts(), plansAt: PLANS.at || 0, discos: discos(), extraDiscos: DISCOS_BASE.length < discos().length }); }));
   app.post('/api/admin/vtu/save', adm, wrap(async (req, res) => {
     const on = {}, m = {}, bi = req.body || {};
     for (const s of ['data', 'tv', 'electricity', 'exam']) on[s] = (bi.on || {})[s] ? 1 : 0;
@@ -292,7 +294,7 @@ module.exports = function install(c) {
   app.post('/api/admin/vtu/refresh', adm, wrap(async (req, res) => {
     if (!E.EA_API_KEY) return res.json({ ok: false, msg: 'EA_API_KEY is not set in your environment.' });
     const r = await refreshPlans(); await audit(req.user.email, 'vtu_refresh_plans', r.ok + '/' + r.total + ' lists');
-    res.json({ ok: r.ok > 0, msg: r.ok ? `${r.ok} of ${r.total} plan lists updated.` + (r.bad.length ? ' Not updated: ' + r.bad.join(', ') + '.' : '') : 'The provider did not return any plans. Check EA_API_KEY and try again.' });
+    res.json({ ok: r.ok > 0, msg: r.ok ? `${r.ok} of ${r.total} plan lists updated.` + (r.bad.length ? ' Not updated: ' + r.bad.join(', ') + '.' : '') : 'EasyAccess returned no plans: ' + r.bad.slice(0, 2).join('; ') });
   }));
   app.post('/api/admin/vtu/balance', adm, wrap(async (req, res) => {
     const r = await ea('wallet-balance', { method: 'GET', live: true, timeout: 20000 }), j = r.json || {};

@@ -18,7 +18,7 @@ test.before(async () => {
   fake = http.createServer((req, res) => { let b = ''; req.on('data', d => b += d); req.on('end', () => {
     const u = new globalThis.URL(req.url, 'http://x'), ep = u.pathname.replace(/^.*\/v1\//, ''), j = b ? JSON.parse(b) : {}; calls.push({ ep, auth: req.headers.authorization, j, mode: u.pathname.split('/')[2] });
     if (req.headers.authorization !== 'Bearer testkey') return send(res, { code: 401, status: 'failed', message: 'Invalid authorization token' }, 401);
-    if (ep === 'get-plans') { const t = u.searchParams.get('product_type'); return PLANS[t] ? send(res, { code: 200, ...PLANS[t] }) : send(res, { code: 404, status: 'failed', message: 'none' }, 404); }
+    if (ep === 'get-plans') { const t = u.searchParams.get('product_type'); if (t === 'neco') { res.statusCode = 403; res.setHeader('Content-Type', 'text/html'); return res.end('<html><title>Attention Required! | Cloudflare</title></html>'); } return PLANS[t] ? send(res, { code: 200, ...PLANS[t] }) : send(res, { code: 404, status: 'failed', message: 'none' }, 404); }
     if (ep === 'wallet-balance') return send(res, { code: 200, status: 'success', balance: '28000', email: 'x@y.com', funding_bank1: 'Palmpay', funding_acctno1: '123' });
     if (ep === 'verify-tv') return verifyOk ? send(res, { code: 200, status: 'success', customer_name: 'JANE DOE', current_package: 'DSTV Yanga', customer_status: 'ACTIVE' }) : send(res, { code: 400, status: 'failed', message: 'Verification failed. Invalid smart card/IUC number, check again' }, 400);
     if (ep === 'verify-electricity') return verifyOk ? send(res, { code: 200, status: 'success', customer_name: 'JOHN DOE', customer_address: '1 TEST CLOSE', customer_metertype: 'PREPAID' }) : send(res, { code: 400, status: 'failed', message: 'Invalid meter number supplied' }, 400);
@@ -151,6 +151,8 @@ test('admin controls: prices, individual not below agent, switch a service off, 
   assert.equal((await call('boss', 'admin/vtu/save', { on: { ...g.on, tv: 0 }, m })).ok, true); const off = await call('ind', 'vtu/buy', { kind: 'tv', company: 1, package: '90', iucno: '1234567890' });
   assert.equal(off.ok, false); assert.match(off.msg, /switched off/); assert.equal((await call('ind', 'vtu/catalog')).tv, undefined); assert.equal((await call('ind', 'me')).vtu.tv, 0);
   assert.equal((await call('boss', 'admin/vtu/refresh')).ok, true);
+  const gd = await call('boss', 'admin/vtu/get'); assert.match(gd.diag, /neco \(HTTP 403: not JSON: .*Cloudflare/);          // the admin is told WHY a list is empty
+  assert.match((await call('boss', 'vtu/catalog')).diag, /neco/); assert.equal((await call('ind', 'vtu/catalog')).diag, undefined); // customers never see it
   const bl = await call('boss', 'admin/vtu/balance'); assert.equal(bl.ok, true); assert.equal(bl.balance, 28000);
   pendState = 'Successful'; const qy = await call('boss', 'admin/vtu/query', { reference: 'DATAPEND1' }); assert.equal(qy.ok, true); assert.equal(qy.state, 'success'); assert.equal(qy.found, true);
 });
