@@ -71,15 +71,16 @@ module.exports = function install(c) {
 
   /* ---------- plan catalogue: kept in the database and refreshed when stale ---------- */
   let PLANS = { at: 0, p: {} }, plansP = null, planTry = 0;
-  const findArr = (o, d = 0) => { if (Array.isArray(o)) return o.some(x => x && x.plan_id != null) ? o : null; if (d > 3 || !o || typeof o !== 'object') return null; for (const v of Object.values(o)) { const f = findArr(v, d + 1); if (f) return f; } return null; };
-  const parsePlans = j => (findArr(j) || []).map(p => ({ id: String(p.plan_id), name: String(p.name || p.plan_id).slice(0, 80), price: Math.ceil(Number(p.price)), validity: String(p.validity || '').slice(0, 30) }))
+  const pid = x => x && (x.plan_id ?? x.id ?? x.variation_code ?? x.code ?? x.planId);
+  const findArr = (o, d = 0) => { if (Array.isArray(o)) return o.some(x => pid(x) != null) ? o : null; if (d > 3 || !o || typeof o !== 'object') return null; for (const v of Object.values(o)) { const f = findArr(v, d + 1); if (f) return f; } return null; };
+  const parsePlans = j => (findArr(j) || []).map(p => ({ id: String(pid(p)), name: String(p.name ?? p.plan_name ?? p.title ?? p.package ?? pid(p)).slice(0, 80), price: Math.ceil(Number(String(p.price ?? p.amount ?? p.cost ?? '').replace(/[^\d.]/g, ''))), validity: String(p.validity ?? p.duration ?? '').slice(0, 30) }))
     .filter(p => Number.isFinite(p.price) && p.price > 0).sort((a, b) => a.price - b.price);
   const allTypes = () => [...Object.values(DATA).flatMap(o => Object.values(o)), ...Object.values(TV).map(x => x[1]), ...Object.values(EXAM).map(x => x[1])];
   function refreshPlans() {
     if (plansP) return plansP;
     plansP = (async () => {
       const types = allTypes(), next = { ...PLANS.p }, bad = [];
-      for (let i = 0; i < types.length; i += 5) await Promise.all(types.slice(i, i + 5).map(async t => { const list = parsePlans((await ea('get-plans?product_type=' + t, { method: 'GET', live: true, timeout: 20000 })).json); if (list.length) next[t] = list; else bad.push(t); }));
+      for (let i = 0; i < types.length; i += 5) await Promise.all(types.slice(i, i + 5).map(async t => { const r = await ea('get-plans?product_type=' + t, { method: 'GET', live: true, timeout: 20000 }), list = parsePlans(r.json); if (list.length) next[t] = list; else bad.push(t + ' (' + (r.nokey ? 'no key' : !r.http ? 'no reply' : 'HTTP ' + r.http) + (r.json && r.json.message ? ': ' + String(r.json.message).slice(0, 60) : r.json ? ': reply had no readable plans' : '') + ')'); }));
       if (bad.length < types.length) { PLANS = { at: Date.now(), p: next }; await setSet('ea_plans', JSON.stringify(PLANS)); }
       return { ok: types.length - bad.length, total: types.length, bad };
     })().finally(() => { plansP = null; });
